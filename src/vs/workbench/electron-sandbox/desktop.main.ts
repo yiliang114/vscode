@@ -100,16 +100,17 @@ export class DesktopMain extends Disposable {
 
 	async open(): Promise<void> {
 
+		// 创建依赖的服务,
 		// Init services and wait for DOM to be ready in parallel
-		const [services] = await Promise.all([this.initServices(), domContentLoaded()]);
+		const [services] = await Promise.all([this.initServices(), domContentLoaded() /* 监听 DOMContentLoaded 事件 */]);
 
-		// Create Workbench
+		// Create Workbench 创建 Workbench 实例
 		const workbench = new Workbench(document.body, { extraClasses: this.getExtraClasses() }, services.serviceCollection, services.logService);
 
-		// Listeners
+		// Listeners 工作台生命周期
 		this.registerListeners(workbench, services.storageService);
 
-		// Startup
+		// Startup 启动工作区
 		const instantiationService = workbench.startup();
 
 		// Window

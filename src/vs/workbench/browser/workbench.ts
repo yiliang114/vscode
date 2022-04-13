@@ -49,6 +49,7 @@ export interface IWorkbenchOptions {
 	extraClasses?: string[];
 }
 
+// Workbench 类继承自 Layout 类，是主界面布局的入口文件，实际布局操作会调用 Layout 抽象类的方法。
 export class Workbench extends Layout {
 
 	private readonly _onWillShutdown = this._register(new Emitter<WillShutdownEvent>());
@@ -135,7 +136,7 @@ export class Workbench extends Layout {
 			// Configure emitter leak warning threshold
 			setGlobalLeakWarningThreshold(175);
 
-			// Services
+			// Services(实例化依赖的服务)
 			const instantiationService = this.initServices(this.serviceCollection);
 
 			instantiationService.invokeFunction(accessor => {
@@ -145,7 +146,7 @@ export class Workbench extends Layout {
 				const hostService = accessor.get(IHostService);
 				const dialogService = accessor.get(IDialogService);
 
-				// Layout
+				// Layout(布局初始化：Services、Parts、Listeners、State)
 				this.initLayout(accessor);
 
 				// Registries
@@ -155,16 +156,16 @@ export class Workbench extends Layout {
 				// Context Keys
 				this._register(instantiationService.createInstance(WorkbenchContextKeysHandler));
 
-				// Register Listeners
+				// Register Listeners (创建全局事件监听)
 				this.registerListeners(lifecycleService, storageService, configurationService, hostService, dialogService);
 
-				// Render Workbench
+				// Render Workbench (渲染工作区)
 				this.renderWorkbench(instantiationService, accessor.get(INotificationService) as NotificationService, storageService, configurationService);
 
 				// Workbench Layout
 				this.createWorkbenchLayout();
 
-				// Layout
+				// Layout (计算布局)
 				this.layout();
 
 				// Restore

@@ -28,6 +28,7 @@
 			// Mark start of workbench
 			performance.mark('code/didLoadWorkbenchMain');
 
+			// 调用 main()
 			// @ts-ignore
 			return require('vs/workbench/electron-sandbox/desktop.main').main(configuration);
 		},

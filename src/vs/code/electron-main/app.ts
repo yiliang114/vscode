@@ -891,6 +891,7 @@ export class CodeApplication extends Disposable {
 				}
 
 				if (shouldOpenInNewWindow) {
+					// 打开主窗口，默认从执行命令行中读取参数
 					const [window] = windowsMainService.open({
 						context: OpenContext.API,
 						cli: { ...environmentService.args },

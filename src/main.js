@@ -114,12 +114,13 @@ app.once('ready', function () {
 });
 
 /**
- * Main startup routine
+ * Main startup routine 主启动进程
  *
  * @param {string | undefined} codeCachePath
  * @param {NLSConfiguration} nlsConfig
  */
 function startup(codeCachePath, nlsConfig) {
+	// 首先会检查用户语言环境配置，如果没有设置默认使用英语
 	nlsConfig._languagePackSupport = true;
 
 	process.env['VSCODE_NLS_CONFIG'] = JSON.stringify(nlsConfig);
@@ -127,6 +128,7 @@ function startup(codeCachePath, nlsConfig) {
 
 	// Load main in AMD
 	perf.mark('code/willLoadMainBundle');
+	// 默认的 require 为一个修改过的 loader，用它来加载 src/vs/code/electron-main/main 模块
 	require('./bootstrap-amd').load('vs/code/electron-main/main', () => {
 		perf.mark('code/didLoadMainBundle');
 	});
@@ -136,6 +138,7 @@ async function onReady() {
 	perf.mark('code/mainAppReady');
 
 	try {
+		// 读取了用户语言设置
 		const [, nlsConfig] = await Promise.all([mkdirpIgnoreError(codeCachePath), resolveNlsConfiguration()]);
 
 		startup(codeCachePath, nlsConfig);
@@ -557,10 +560,12 @@ async function resolveNlsConfiguration() {
 			nlsConfiguration = { locale: 'en', availableLanguages: {} };
 		} else {
 
+			// 配置兼容大小写敏感，所以统一转换成小写
 			// See above the comment about the loader and case sensitiveness
 			appLocale = appLocale.toLowerCase();
 
 			const { getNLSConfiguration } = require('./vs/base/node/languagePacks');
+			// 这里就会调用config服务，把本地配置加载进来再调用startup
 			nlsConfiguration = await getNLSConfiguration(product.commit, userDataPath, metaDataFile, appLocale);
 			if (!nlsConfiguration) {
 				nlsConfiguration = { locale: appLocale, availableLanguages: {} };

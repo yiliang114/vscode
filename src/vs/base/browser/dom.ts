@@ -1179,6 +1179,7 @@ export function finalHandler<T extends Event>(fn: (event: T) => any): (event: T)
 	};
 }
 
+// 监听 DOMContentLoaded 事件
 export function domContentLoaded(): Promise<unknown> {
 	return new Promise<unknown>(resolve => {
 		const readyState = document.readyState;

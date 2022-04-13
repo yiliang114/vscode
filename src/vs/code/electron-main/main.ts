@@ -73,6 +73,7 @@ class CodeMain {
 
 	main(): void {
 		try {
+			// 启动
 			this.startup();
 		} catch (error) {
 			console.error(error.message);
@@ -102,7 +103,7 @@ class CodeMain {
 				throw error;
 			}
 
-			// Startup
+			// Startup 启动实例
 			await instantiationService.invokeFunction(async accessor => {
 				const logService = accessor.get(ILogService);
 				const lifecycleMainService = accessor.get(ILifecycleMainService);
@@ -128,6 +129,7 @@ class CodeMain {
 					evt.join(FSPromises.unlink(environmentMainService.mainLockfile).catch(() => { /* ignored */ }));
 				});
 
+				// 实例服务创建 CodeApplication 实例并调用 startup
 				return instantiationService.createInstance(CodeApplication, mainProcessNodeIpcServer, instanceEnvironment).startup();
 			});
 		} catch (error) {
@@ -145,6 +147,7 @@ class CodeMain {
 		// Environment
 		const environmentMainService = new EnvironmentMainService(this.resolveArgs(), productService);
 		const instanceEnvironment = this.patchEnvironment(environmentMainService); // Patch `process.env` with the instance's environment
+		// environmentService 一些基本配置，包括运行目录、用户数据目录、工作区缓存目录等
 		services.set(IEnvironmentMainService, environmentMainService);
 
 		// Log: We need to buffer the spdlog logs until we are sure
@@ -153,6 +156,7 @@ class CodeMain {
 		const bufferLogService = new BufferLogService();
 		const logService = new MultiplexLogService([new ConsoleMainLogger(getLogLevel(environmentMainService)), bufferLogService]);
 		process.once('exit', () => logService.dispose());
+		// logService 日志服务
 		services.set(ILogService, logService);
 
 		// Files
@@ -166,16 +170,17 @@ class CodeMain {
 
 		// Configuration
 		const configurationService = new ConfigurationService(environmentMainService.settingsResource, fileService);
+		// 配置项
 		services.set(IConfigurationService, configurationService);
 
-		// Lifecycle
+		// Lifecycle 生命周期相关的一些方法
 		services.set(ILifecycleMainService, new SyncDescriptor(LifecycleMainService));
 
-		// State
+		// State 持久化数据
 		const stateMainService = new StateMainService(environmentMainService, logService, fileService);
 		services.set(IStateMainService, stateMainService);
 
-		// Request
+		// Request 请求服务
 		services.set(IRequestService, new SyncDescriptor(RequestMainService));
 
 		// Themes
@@ -190,6 +195,7 @@ class CodeMain {
 		// Protocol
 		services.set(IProtocolMainService, new SyncDescriptor(ProtocolMainService));
 
+		// InstantiationService 实例化服务
 		return [new InstantiationService(services, true), instanceEnvironment, environmentMainService, configurationService, stateMainService, bufferLogService, productService];
 	}
 
@@ -211,6 +217,7 @@ class CodeMain {
 	}
 
 	private initServices(environmentMainService: IEnvironmentMainService, configurationService: ConfigurationService, stateMainService: StateMainService): Promise<unknown> {
+		// 最终输出 [{status: "rejected", value: 3}...]
 		return Promises.settled<unknown>([
 
 			// Environment service (paths)
@@ -313,6 +320,7 @@ class CodeMain {
 			}
 
 			const otherInstanceLaunchMainService = ProxyChannel.toService<ILaunchMainService>(client.getChannel('launch'), { disableMarshalling: true });
+			// 诊断服务，包括程序运行性能分析及系统状态
 			const otherInstanceDiagnosticsMainService = ProxyChannel.toService<IDiagnosticsMainService>(client.getChannel('diagnostics'), { disableMarshalling: true });
 
 			// Process Info

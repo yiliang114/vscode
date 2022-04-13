@@ -741,6 +741,7 @@ export class CodeWindow extends Disposable implements ICodeWindow {
 		this.readyState = ReadyState.NAVIGATING;
 
 		// Load URL
+		// CodeWindow 中的 load() 负责加载 URL
 		this._win.loadURL(FileAccess.asBrowserUri(this.environmentMainService.sandbox ?
 			'vs/code/electron-sandbox/workbench/workbench.html' :
 			'vs/code/electron-browser/workbench/workbench.html', require

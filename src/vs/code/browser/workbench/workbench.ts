@@ -494,7 +494,7 @@ function doCreateUri(path: string, queryValues: Map<string, string>): URI {
 	}
 	const config: IWorkbenchConstructionOptions & { folderUri?: UriComponents; workspaceUri?: UriComponents } = JSON.parse(configElementAttribute);
 
-	// Create workbench
+	// Create workbench. 创建 DOM 结构， 挂载到 body 中。。。
 	create(document.body, {
 		...config,
 		settingsSyncOptions: config.settingsSyncOptions ? {

@@ -590,6 +590,8 @@ export class TitlebarPart extends Part implements ITitleService {
 	}
 }
 
+// 主题修改
+// themingRegistry.onColorThemeChange
 registerThemingParticipant((theme, collector) => {
 	const titlebarActiveFg = theme.getColor(TITLE_BAR_ACTIVE_FOREGROUND);
 	if (titlebarActiveFg) {

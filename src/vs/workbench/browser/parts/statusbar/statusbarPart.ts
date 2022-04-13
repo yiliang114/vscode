@@ -570,6 +570,7 @@ export class StatusbarPart extends Part implements IStatusbarService {
 	}
 }
 
+// 支持主题定制
 registerThemingParticipant((theme, collector) => {
 	if (!isHighContrast(theme.type)) {
 		const statusBarItemHoverBackground = theme.getColor(STATUS_BAR_ITEM_HOVER_BACKGROUND);

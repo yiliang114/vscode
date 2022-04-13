@@ -244,6 +244,8 @@ export class WindowsMainService extends Disposable implements IWindowsMainServic
 		this.handleWaitMarkerFile(openConfig, [window]);
 	}
 
+	// open -> this.doOpen -> this.openInBrowserWindow -> this.doOpenInBrowserWindow -> window.load
+	// window => CodeWindow(src/vs/code/electron-main/window.ts)
 	open(openConfig: IOpenConfiguration): ICodeWindow[] {
 		this.logService.trace('windowsManager#open');
 
