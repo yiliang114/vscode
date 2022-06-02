@@ -8,7 +8,7 @@ import { URI } from 'vs/base/common/uri';
 import { IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { isWindows, isMacintosh } from 'vs/base/common/platform';
 import { Schemas } from 'vs/base/common/network';
-import { INativeHostService } from 'vs/platform/native/electron-sandbox/native';
+import { INativeHostService } from 'vs/platform/native/common/native';
 import { KeybindingsRegistry, KeybindingWeight } from 'vs/platform/keybinding/common/keybindingsRegistry';
 import { EditorContextKeys } from 'vs/editor/common/editorContextKeys';
 import { KeyMod, KeyCode, KeyChord } from 'vs/base/common/keyCodes';
@@ -57,7 +57,7 @@ KeybindingsRegistry.registerCommandAndKeybindingRule({
 	}
 });
 
-appendEditorTitleContextMenuItem(REVEAL_IN_OS_COMMAND_ID, REVEAL_IN_OS_LABEL, REVEAL_IN_OS_WHEN_CONTEXT);
+appendEditorTitleContextMenuItem(REVEAL_IN_OS_COMMAND_ID, REVEAL_IN_OS_LABEL, REVEAL_IN_OS_WHEN_CONTEXT, '2_files', 0);
 
 // Menu registration - open editors
 
@@ -70,6 +70,12 @@ MenuRegistry.appendMenuItem(MenuId.OpenEditorsContext, {
 	order: 20,
 	command: revealInOsCommand,
 	when: REVEAL_IN_OS_WHEN_CONTEXT
+});
+MenuRegistry.appendMenuItem(MenuId.OpenEditorsContextShare, {
+	title: nls.localize('miShare', "Share"),
+	submenu: MenuId.MenubarShare,
+	group: 'share',
+	order: 3,
 });
 
 // Menu registration - explorer
@@ -84,4 +90,8 @@ MenuRegistry.appendMenuItem(MenuId.ExplorerContext, {
 // Command Palette
 
 const category = { value: nls.localize('filesCategory', "File"), original: 'File' };
-appendToCommandPalette(REVEAL_IN_OS_COMMAND_ID, { value: REVEAL_IN_OS_LABEL, original: isWindows ? 'Reveal in File Explorer' : isMacintosh ? 'Reveal in Finder' : 'Open Containing Folder' }, category, REVEAL_IN_OS_WHEN_CONTEXT);
+appendToCommandPalette({
+	id: REVEAL_IN_OS_COMMAND_ID,
+	title: { value: REVEAL_IN_OS_LABEL, original: isWindows ? 'Reveal in File Explorer' : isMacintosh ? 'Reveal in Finder' : 'Open Containing Folder' },
+	category: category
+}, REVEAL_IN_OS_WHEN_CONTEXT);

@@ -17,6 +17,7 @@ import { ILanguageService } from 'vs/editor/common/languages/language';
 import { ITextModel } from 'vs/editor/common/model';
 import { IModelService } from 'vs/editor/common/services/model';
 import * as nls from 'vs/nls';
+import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IContextKey, IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { editorForeground, resolveColorValue } from 'vs/platform/theme/common/colorRegistry';
@@ -27,7 +28,7 @@ import { ICommentService } from 'vs/workbench/contrib/comments/browser/commentSe
 import { CommentContextKeys } from 'vs/workbench/contrib/comments/common/commentContextKeys';
 import { ICommentThreadWidget } from 'vs/workbench/contrib/comments/common/commentThreadWidget';
 import { ICellRange } from 'vs/workbench/contrib/notebook/common/notebookRange';
-import { SimpleCommentEditor } from './simpleCommentEditor';
+import { LayoutableEditor, MIN_EDITOR_HEIGHT, SimpleCommentEditor, calculateEditorHeight } from './simpleCommentEditor';
 
 const COMMENT_SCHEME = 'comment';
 let INMEM_MODEL_ID = 0;
@@ -39,30 +40,35 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 	commentEditorIsEmpty: IContextKey<boolean>;
 	private _error!: HTMLElement;
 	private _formActions: HTMLElement | null;
+	private _editorActions: HTMLElement | null;
 	private _commentThreadDisposables: IDisposable[] = [];
 	private _commentFormActions!: CommentFormActions;
+	private _commentEditorActions!: CommentFormActions;
 	private _reviewThreadReplyButton!: HTMLElement;
+	private _editorHeight = MIN_EDITOR_HEIGHT;
 
 	constructor(
 		readonly owner: string,
 		container: HTMLElement,
+		private readonly _parentEditor: LayoutableEditor,
 		private _commentThread: languages.CommentThread<T>,
 		private _scopedInstatiationService: IInstantiationService,
 		private _contextKeyService: IContextKeyService,
 		private _commentMenus: CommentMenus,
 		private _commentOptions: languages.CommentOptions | undefined,
-		private _pendingComment: string | null,
+		private _pendingComment: string | undefined,
 		private _parentThread: ICommentThreadWidget,
 		private _actionRunDelegate: (() => void) | null,
 		@ICommentService private commentService: ICommentService,
 		@ILanguageService private languageService: ILanguageService,
 		@IModelService private modelService: IModelService,
 		@IThemeService private themeService: IThemeService,
+		@IConfigurationService configurationService: IConfigurationService
 	) {
 		super();
 
 		this.form = dom.append(container, dom.$('.comment-form'));
-		this.commentEditor = this._register(this._scopedInstatiationService.createInstance(SimpleCommentEditor, this.form, SimpleCommentEditor.getEditorOptions(), this._parentThread));
+		this.commentEditor = this._register(this._scopedInstatiationService.createInstance(SimpleCommentEditor, this.form, SimpleCommentEditor.getEditorOptions(configurationService), _contextKeyService, this._parentThread));
 		this.commentEditorIsEmpty = CommentContextKeys.commentIsEmpty.bindTo(this._contextKeyService);
 		this.commentEditorIsEmpty.set(!this._pendingComment);
 
@@ -74,7 +80,7 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 		});
 
 		let resource = URI.parse(`${COMMENT_SCHEME}://${this._commentThread.extensionId}/commentinput-${modeId}.md?${params}`); // TODO. Remove params once extensions adopt authority.
-		let commentController = this.commentService.getCommentController(owner);
+		const commentController = this.commentService.getCommentController(owner);
 		if (commentController) {
 			resource = resource.with({ authority: commentController.id });
 		}
@@ -82,10 +88,15 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 		const model = this.modelService.createModel(this._pendingComment || '', this.languageService.createByFilepathOrFirstLine(resource), resource, false);
 		this._register(model);
 		this.commentEditor.setModel(model);
+		this.calculateEditorHeight();
 
-		this._register((this.commentEditor.getModel()!.onDidChangeContent(() => {
+		this._register((model.onDidChangeContent(() => {
 			this.setCommentEditorDecorations();
 			this.commentEditorIsEmpty?.set(!this.commentEditor.getValue());
+			if (this.calculateEditorHeight()) {
+				this.commentEditor.layout({ height: this._editorHeight, width: this.commentEditor.getLayoutInfo().width });
+				this.commentEditor.render(true);
+			}
 		})));
 
 		this.createTextModelListener(this.commentEditor, this.form);
@@ -95,15 +106,24 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 		// Only add the additional step of clicking a reply button to expand the textarea when there are existing comments
 		if (hasExistingComments) {
 			this.createReplyButton(this.commentEditor, this.form);
-		} else {
-			if (this._commentThread.comments && this._commentThread.comments.length === 0) {
-				this.expandReplyArea();
-			}
+		} else if ((this._commentThread.comments && this._commentThread.comments.length === 0) || this._pendingComment) {
+			this.expandReplyArea();
 		}
 		this._error = dom.append(this.form, dom.$('.validation-error.hidden'));
+		const formActions = dom.append(this.form, dom.$('.form-actions'));
+		this._formActions = dom.append(formActions, dom.$('.other-actions'));
+		this.createCommentWidgetFormActions(this._formActions, model);
+		this._editorActions = dom.append(formActions, dom.$('.editor-actions'));
+		this.createCommentWidgetEditorActions(this._editorActions, model);
+	}
 
-		this._formActions = dom.append(this.form, dom.$('.form-actions'));
-		this.createCommentWidgetActions(this._formActions, model);
+	private calculateEditorHeight(): boolean {
+		const newEditorHeight = calculateEditorHeight(this._parentEditor, this.commentEditor, this._editorHeight);
+		if (newEditorHeight !== this._editorHeight) {
+			this._editorHeight = newEditorHeight;
+			return true;
+		}
+		return false;
 	}
 
 	public updateCommentThread(commentThread: languages.CommentThread<IRange | ICellRange>) {
@@ -122,18 +142,24 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 		}
 	}
 
-	public getPendingComment(): string | null {
-		let model = this.commentEditor.getModel();
+	public getPendingComment(): string | undefined {
+		const model = this.commentEditor.getModel();
 
 		if (model && model.getValueLength() > 0) { // checking length is cheap
 			return model.getValue();
 		}
 
-		return null;
+		return undefined;
+	}
+
+	public setPendingComment(comment: string) {
+		this._pendingComment = comment;
+		this.expandReplyArea();
+		this.commentEditor.setValue(comment);
 	}
 
 	public layout(widthInPixel: number) {
-		this.commentEditor.layout({ height: 5 * 18, width: widthInPixel - 54 /* margin 20px * 10 + scrollbar 14px*/ });
+		this.commentEditor.layout({ height: this._editorHeight, width: widthInPixel - 54 /* margin 20px * 10 + scrollbar 14px*/ });
 	}
 
 	public focusIfNeeded() {
@@ -146,6 +172,15 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 
 	public focusCommentEditor() {
 		this.commentEditor.focus();
+	}
+
+	public expandReplyAreaAndFocusCommentEditor() {
+		this.expandReplyArea();
+		this.commentEditor.focus();
+	}
+
+	public isCommentEditorFocused(): boolean {
+		return this.commentEditor.hasWidgetFocus();
 	}
 
 	public getCommentModel() {
@@ -161,9 +196,8 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 	}
 
 	async submitComment(): Promise<void> {
-		if (this._commentFormActions) {
-			this._commentFormActions.triggerDefaultAction();
-		}
+		await this._commentFormActions?.triggerDefaultAction();
+		this._pendingComment = undefined;
 	}
 
 	setCommentEditorDecorations() {
@@ -191,7 +225,7 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 				}
 			}];
 
-			this.commentEditor.setDecorations('review-zone-widget', COMMENTEDITOR_DECORATION_KEY, decorations);
+			this.commentEditor.setDecorationsByType('review-zone-widget', COMMENTEDITOR_DECORATION_KEY, decorations);
 		}
 	}
 
@@ -205,9 +239,9 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 		}));
 
 		this._commentThreadDisposables.push(commentEditor.getModel()!.onDidChangeContent(() => {
-			let modelContent = commentEditor.getValue();
+			const modelContent = commentEditor.getValue();
 			if (this._commentThread.input && this._commentThread.input.uri === commentEditor.getModel()!.uri && this._commentThread.input.value !== modelContent) {
-				let newInput: languages.CommentInput = this._commentThread.input;
+				const newInput: languages.CommentInput = this._commentThread.input;
 				newInput.value = modelContent;
 				this._commentThread.input = newInput;
 			}
@@ -215,9 +249,9 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 		}));
 
 		this._commentThreadDisposables.push(this._commentThread.onDidChangeInput(input => {
-			let thread = this._commentThread;
-
-			if (thread.input && thread.input.uri !== commentEditor.getModel()!.uri) {
+			const thread = this._commentThread;
+			const model = commentEditor.getModel();
+			if (thread.input && model && (thread.input.uri !== model.uri)) {
 				return;
 			}
 			if (!input) {
@@ -241,7 +275,7 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 	/**
 	 * Command based actions.
 	 */
-	private createCommentWidgetActions(container: HTMLElement, model: ITextModel) {
+	private createCommentWidgetFormActions(container: HTMLElement, model: ITextModel) {
 		const menu = this._commentMenus.getCommentThreadActions(this._contextKeyService);
 
 		this._register(menu);
@@ -250,9 +284,30 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 		}));
 
 		this._commentFormActions = new CommentFormActions(container, async (action: IAction) => {
-			if (this._actionRunDelegate) {
-				this._actionRunDelegate();
-			}
+			await this._actionRunDelegate?.();
+
+			await action.run({
+				thread: this._commentThread,
+				text: this.commentEditor.getValue(),
+				$mid: MarshalledId.CommentThreadReply
+			});
+
+			this.hideReplyArea();
+		});
+
+		this._register(this._commentFormActions);
+		this._commentFormActions.setActions(menu);
+	}
+
+	private createCommentWidgetEditorActions(container: HTMLElement, model: ITextModel) {
+		const editorMenu = this._commentMenus.getCommentEditorActions(this._contextKeyService);
+		this._register(editorMenu);
+		this._register(editorMenu.onDidChange(() => {
+			this._commentEditorActions.setActions(editorMenu);
+		}));
+
+		this._commentEditorActions = new CommentFormActions(container, async (action: IAction) => {
+			this._actionRunDelegate?.();
 
 			action.run({
 				thread: this._commentThread,
@@ -260,23 +315,35 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 				$mid: MarshalledId.CommentThreadReply
 			});
 
-			this.hideReplyArea();
-		}, this.themeService);
+			this.focusCommentEditor();
+		});
 
-		this._commentFormActions.setActions(menu);
+		this._register(this._commentEditorActions);
+		this._commentEditorActions.setActions(editorMenu, true);
+	}
+
+	private get isReplyExpanded(): boolean {
+		return this.form.classList.contains('expand');
 	}
 
 	private expandReplyArea() {
-		if (!this.form.classList.contains('expand')) {
+		if (!this.isReplyExpanded) {
 			this.form.classList.add('expand');
 			this.commentEditor.focus();
 			this.commentEditor.layout();
 		}
 	}
 
+	private clearAndExpandReplyArea() {
+		if (!this.isReplyExpanded) {
+			this.commentEditor.setValue('');
+			this.expandReplyArea();
+		}
+	}
+
 	private hideReplyArea() {
-		this.commentEditor.setValue('');
 		this.commentEditor.getDomNode()!.style.outline = '';
+		this.commentEditor.setValue('');
 		this._pendingComment = '';
 		this.form.classList.remove('expand');
 		this._error.textContent = '';
@@ -289,8 +356,8 @@ export class CommentReply<T extends IRange | ICellRange> extends Disposable {
 
 		this._reviewThreadReplyButton.textContent = this._commentOptions?.prompt || nls.localize('reply', "Reply...");
 		// bind click/escape actions for reviewThreadReplyButton and textArea
-		this._register(dom.addDisposableListener(this._reviewThreadReplyButton, 'click', _ => this.expandReplyArea()));
-		this._register(dom.addDisposableListener(this._reviewThreadReplyButton, 'focus', _ => this.expandReplyArea()));
+		this._register(dom.addDisposableListener(this._reviewThreadReplyButton, 'click', _ => this.clearAndExpandReplyArea()));
+		this._register(dom.addDisposableListener(this._reviewThreadReplyButton, 'focus', _ => this.clearAndExpandReplyArea()));
 
 		commentEditor.onDidBlurEditorWidget(() => {
 			if (commentEditor.getModel()!.getValueLength() === 0 && commentForm.classList.contains('expand')) {

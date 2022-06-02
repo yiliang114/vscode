@@ -37,8 +37,13 @@ export function getIconClasses(modelService: IModelService, languageService: ILa
 			}
 		}
 
+		// Root Folders
+		if (fileKind === FileKind.ROOT_FOLDER) {
+			classes.push(`${name}-root-name-folder-icon`);
+		}
+
 		// Folders
-		if (fileKind === FileKind.FOLDER) {
+		else if (fileKind === FileKind.FOLDER) {
 			classes.push(`${name}-name-folder-icon`);
 		}
 
@@ -70,7 +75,6 @@ export function getIconClasses(modelService: IModelService, languageService: ILa
 	}
 	return classes;
 }
-
 
 export function getIconClassesForLanguageId(languageId: string): string[] {
 	return ['file-icon', `${cssEscape(languageId)}-lang-file-icon`];
@@ -110,6 +114,6 @@ function detectLanguageId(modelService: IModelService, languageService: ILanguag
 	return languageService.guessLanguageIdByFilepathOrFirstLine(resource);
 }
 
-export function cssEscape(str: string): string {
+function cssEscape(str: string): string {
 	return str.replace(/[\11\12\14\15\40]/g, '/'); // HTML class names can not contain certain whitespace characters, use / instead, which doesn't exist in file names.
 }

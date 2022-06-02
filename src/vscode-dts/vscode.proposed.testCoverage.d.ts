@@ -30,7 +30,7 @@ declare module 'vscode' {
 
 		/**
 		 * Give a FileCoverage to fill in more data, namely {@link FileCoverage.detailedCoverage}.
-		 * The editor will only resolve a FileCoverage once, and onyl if detailedCoverage
+		 * The editor will only resolve a FileCoverage once, and only if detailedCoverage
 		 * is undefined.
 		 *
 		 * @param coverage A coverage object obtained from {@link provideFileCoverage}
@@ -176,6 +176,11 @@ declare module 'vscode' {
 	 */
 	export class FunctionCoverage {
 		/**
+		 * Name of the function or method.
+		 */
+		name: string;
+
+		/**
 		 * The number of times this function was executed. If zero, the
 		 * function will be marked as un-covered.
 		 */
@@ -190,7 +195,7 @@ declare module 'vscode' {
 		 * @param executionCount The number of times this function was executed.
 		 * @param location The function position.
 		 */
-		constructor(executionCount: number, location: Position | Range);
+		constructor(name: string, executionCount: number, location: Position | Range);
 	}
 
 	export type DetailedCoverage = StatementCoverage | FunctionCoverage;

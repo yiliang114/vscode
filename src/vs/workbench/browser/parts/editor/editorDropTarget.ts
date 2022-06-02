@@ -4,37 +4,40 @@
  *--------------------------------------------------------------------------------------------*/
 
 import 'vs/css!./media/editordroptarget';
-import { localize } from 'vs/nls';
-import { Extensions as DragAndDropExtensions, LocalSelectionTransfer, DraggedEditorIdentifier, ResourcesDropHandler, DraggedEditorGroupIdentifier, containsDragType, CodeDataTransfers, DraggedTreeItemsIdentifier, extractTreeDropData, IDragAndDropContributionRegistry } from 'vs/workbench/browser/dnd';
-import { addDisposableListener, EventType, EventHelper, isAncestor, DragAndDropObserver } from 'vs/base/browser/dom';
-import { IEditorGroupsAccessor, IEditorGroupView, fillActiveEditorViewState } from 'vs/workbench/browser/parts/editor/editor';
-import { EDITOR_DRAG_AND_DROP_BACKGROUND } from 'vs/workbench/common/theme';
-import { IThemeService, Themable } from 'vs/platform/theme/common/themeService';
-import { activeContrastBorder } from 'vs/platform/theme/common/colorRegistry';
-import { IEditorIdentifier, EditorInputCapabilities, IUntypedEditorInput } from 'vs/workbench/common/editor';
-import { isMacintosh, isWeb } from 'vs/base/common/platform';
-import { GroupDirection, IEditorGroupsService, IMergeGroupOptions, MergeGroupMode } from 'vs/workbench/services/editor/common/editorGroupsService';
-import { toDisposable } from 'vs/base/common/lifecycle';
-import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
-import { RunOnceScheduler } from 'vs/base/common/async';
 import { DataTransfers } from 'vs/base/browser/dnd';
-import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
-import { assertIsDefined, assertAllDefined } from 'vs/base/common/types';
-import { ITreeViewsService } from 'vs/workbench/services/views/browser/treeViewsService';
-import { isTemporaryWorkspace, IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
+import { addDisposableListener, DragAndDropObserver, EventHelper, EventType, getWindow, isAncestor } from 'vs/base/browser/dom';
+import { renderFormattedText } from 'vs/base/browser/formattedTextRenderer';
+import { RunOnceScheduler } from 'vs/base/common/async';
+import { toDisposable } from 'vs/base/common/lifecycle';
+import { isMacintosh, isWeb } from 'vs/base/common/platform';
+import { assertAllDefined, assertIsDefined } from 'vs/base/common/types';
+import { localize } from 'vs/nls';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { Registry } from 'vs/platform/registry/common/platform';
+import { activeContrastBorder } from 'vs/platform/theme/common/colorRegistry';
+import { IThemeService, Themable } from 'vs/platform/theme/common/themeService';
+import { isTemporaryWorkspace, IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
+import { CodeDataTransfers, containsDragType, Extensions as DragAndDropExtensions, IDragAndDropContributionRegistry, LocalSelectionTransfer } from 'vs/platform/dnd/browser/dnd';
+import { DraggedEditorGroupIdentifier, DraggedEditorIdentifier, extractTreeDropData, ResourcesDropHandler } from 'vs/workbench/browser/dnd';
+import { fillActiveEditorViewState, IEditorGroupView } from 'vs/workbench/browser/parts/editor/editor';
+import { EditorInputCapabilities, IEditorIdentifier, IUntypedEditorInput } from 'vs/workbench/common/editor';
+import { EDITOR_DRAG_AND_DROP_BACKGROUND, EDITOR_DROP_INTO_PROMPT_BACKGROUND, EDITOR_DROP_INTO_PROMPT_BORDER, EDITOR_DROP_INTO_PROMPT_FOREGROUND } from 'vs/workbench/common/theme';
+import { GroupDirection, IEditorDropTargetDelegate, IEditorGroup, IEditorGroupsService, IMergeGroupOptions, MergeGroupMode } from 'vs/workbench/services/editor/common/editorGroupsService';
+import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
+import { ITreeViewsDnDService } from 'vs/editor/common/services/treeViewsDndService';
+import { DraggedTreeItemsIdentifier } from 'vs/editor/common/services/treeViewsDnd';
 
 interface IDropOperation {
 	splitDirection?: GroupDirection;
 }
 
-function isDropIntoEditorEnabled(configurationService: IConfigurationService) {
-	return configurationService.getValue<boolean>('workbench.editor.dropIntoEditor.enabled');
+function isDropIntoEditorEnabledGlobally(configurationService: IConfigurationService) {
+	return configurationService.getValue<boolean>('editor.dropIntoEditor.enabled');
 }
 
-function isDragIntoEditorEvent(configurationService: IConfigurationService, e: DragEvent): boolean {
-	return isDropIntoEditorEnabled(configurationService) && e.shiftKey;
+function isDragIntoEditorEvent(e: DragEvent): boolean {
+	return e.shiftKey;
 }
 
 class DropOverlay extends Themable {
@@ -46,7 +49,9 @@ class DropOverlay extends Themable {
 	private dropIntoPromptElement?: HTMLSpanElement;
 
 	private currentDropOperation: IDropOperation | undefined;
+
 	private _disposed: boolean | undefined;
+	get disposed(): boolean { return !!this._disposed; }
 
 	private cleanupOverlayScheduler: RunOnceScheduler;
 
@@ -54,26 +59,25 @@ class DropOverlay extends Themable {
 	private readonly groupTransfer = LocalSelectionTransfer.getInstance<DraggedEditorGroupIdentifier>();
 	private readonly treeItemsTransfer = LocalSelectionTransfer.getInstance<DraggedTreeItemsIdentifier>();
 
+	private readonly enableDropIntoEditor: boolean;
+
 	constructor(
-		private accessor: IEditorGroupsAccessor,
-		private groupView: IEditorGroupView,
+		private readonly groupView: IEditorGroupView,
 		@IThemeService themeService: IThemeService,
 		@IConfigurationService private readonly configurationService: IConfigurationService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@IEditorService private readonly editorService: IEditorService,
 		@IEditorGroupsService private readonly editorGroupService: IEditorGroupsService,
-		@ITreeViewsService private readonly treeViewsDragAndDropService: ITreeViewsService,
+		@ITreeViewsDnDService private readonly treeViewsDragAndDropService: ITreeViewsDnDService,
 		@IWorkspaceContextService private readonly contextService: IWorkspaceContextService
 	) {
 		super(themeService);
 
 		this.cleanupOverlayScheduler = this._register(new RunOnceScheduler(() => this.dispose(), 300));
 
-		this.create();
-	}
+		this.enableDropIntoEditor = isDropIntoEditorEnabledGlobally(this.configurationService) && this.isDropIntoActiveEditorEnabled();
 
-	get disposed(): boolean {
-		return !!this._disposed;
+		this.create();
 	}
 
 	private create(): void {
@@ -97,10 +101,9 @@ class DropOverlay extends Themable {
 		this.overlay.classList.add('editor-group-overlay-indicator');
 		container.appendChild(this.overlay);
 
-		if (isDropIntoEditorEnabled(this.configurationService)) {
-			this.dropIntoPromptElement = document.createElement('span');
+		if (this.enableDropIntoEditor) {
+			this.dropIntoPromptElement = renderFormattedText(localize('dropIntoEditorPrompt', "Hold __{0}__ to drop into editor", isMacintosh ? '⇧' : 'Shift'), {});
 			this.dropIntoPromptElement.classList.add('editor-group-overlay-drop-into-prompt');
-			this.dropIntoPromptElement.textContent = localize('dropIntoEditorPrompt', "Hold shift to drop into editor");
 			this.overlay.appendChild(this.dropIntoPromptElement);
 		}
 
@@ -111,7 +114,7 @@ class DropOverlay extends Themable {
 		this.updateStyles();
 	}
 
-	protected override updateStyles(): void {
+	override updateStyles(): void {
 		const overlay = assertIsDefined(this.overlay);
 
 		// Overlay drop background
@@ -123,13 +126,26 @@ class DropOverlay extends Themable {
 		overlay.style.outlineOffset = activeContrastBorderColor ? '-2px' : '';
 		overlay.style.outlineStyle = activeContrastBorderColor ? 'dashed' : '';
 		overlay.style.outlineWidth = activeContrastBorderColor ? '2px' : '';
+
+		if (this.dropIntoPromptElement) {
+			this.dropIntoPromptElement.style.backgroundColor = this.getColor(EDITOR_DROP_INTO_PROMPT_BACKGROUND) ?? '';
+			this.dropIntoPromptElement.style.color = this.getColor(EDITOR_DROP_INTO_PROMPT_FOREGROUND) ?? '';
+
+			const borderColor = this.getColor(EDITOR_DROP_INTO_PROMPT_BORDER);
+			if (borderColor) {
+				this.dropIntoPromptElement.style.borderWidth = '1px';
+				this.dropIntoPromptElement.style.borderStyle = 'solid';
+				this.dropIntoPromptElement.style.borderColor = borderColor;
+			} else {
+				this.dropIntoPromptElement.style.borderWidth = '0';
+			}
+		}
 	}
 
 	private registerListeners(container: HTMLElement): void {
 		this._register(new DragAndDropObserver(container, {
-			onDragEnter: e => undefined,
 			onDragOver: e => {
-				if (isDragIntoEditorEvent(this.configurationService, e)) {
+				if (this.enableDropIntoEditor && isDragIntoEditorEvent(e)) {
 					this.dispose();
 					return;
 				}
@@ -209,13 +225,17 @@ class DropOverlay extends Themable {
 		}));
 	}
 
-	private findSourceGroupView(): IEditorGroupView | undefined {
+	private isDropIntoActiveEditorEnabled(): boolean {
+		return !!this.groupView.activeEditor?.hasCapability(EditorInputCapabilities.CanDropIntoEditor);
+	}
+
+	private findSourceGroupView(): IEditorGroup | undefined {
 
 		// Check for group transfer
 		if (this.groupTransfer.hasData(DraggedEditorGroupIdentifier.prototype)) {
 			const data = this.groupTransfer.getData(DraggedEditorGroupIdentifier.prototype);
 			if (Array.isArray(data)) {
-				return this.accessor.getGroup(data[0].identifier);
+				return this.editorGroupService.getGroup(data[0].identifier);
 			}
 		}
 
@@ -223,7 +243,7 @@ class DropOverlay extends Themable {
 		else if (this.editorTransfer.hasData(DraggedEditorIdentifier.prototype)) {
 			const data = this.editorTransfer.getData(DraggedEditorIdentifier.prototype);
 			if (Array.isArray(data)) {
-				return this.accessor.getGroup(data[0].identifier.groupId);
+				return this.editorGroupService.getGroup(data[0].identifier.groupId);
 			}
 		}
 
@@ -234,9 +254,9 @@ class DropOverlay extends Themable {
 
 		// Determine target group
 		const ensureTargetGroup = () => {
-			let targetGroup: IEditorGroupView;
+			let targetGroup: IEditorGroup;
 			if (typeof splitDirection === 'number') {
-				targetGroup = this.accessor.addGroup(this.groupView, splitDirection);
+				targetGroup = this.editorGroupService.addGroup(this.groupView, splitDirection);
 			} else {
 				targetGroup = this.groupView;
 			}
@@ -248,19 +268,19 @@ class DropOverlay extends Themable {
 		if (this.groupTransfer.hasData(DraggedEditorGroupIdentifier.prototype)) {
 			const data = this.groupTransfer.getData(DraggedEditorGroupIdentifier.prototype);
 			if (Array.isArray(data)) {
-				const sourceGroup = this.accessor.getGroup(data[0].identifier);
+				const sourceGroup = this.editorGroupService.getGroup(data[0].identifier);
 				if (sourceGroup) {
 					if (typeof splitDirection !== 'number' && sourceGroup === this.groupView) {
 						return;
 					}
 
 					// Split to new group
-					let targetGroup: IEditorGroupView | undefined;
+					let targetGroup: IEditorGroup | undefined;
 					if (typeof splitDirection === 'number') {
 						if (this.isCopyOperation(event)) {
-							targetGroup = this.accessor.copyGroup(sourceGroup, this.groupView, splitDirection);
+							targetGroup = this.editorGroupService.copyGroup(sourceGroup, this.groupView, splitDirection);
 						} else {
-							targetGroup = this.accessor.moveGroup(sourceGroup, this.groupView, splitDirection);
+							targetGroup = this.editorGroupService.moveGroup(sourceGroup, this.groupView, splitDirection);
 						}
 					}
 
@@ -271,11 +291,11 @@ class DropOverlay extends Themable {
 							mergeGroupOptions = { mode: MergeGroupMode.COPY_EDITORS };
 						}
 
-						this.accessor.mergeGroup(sourceGroup, this.groupView, mergeGroupOptions);
+						this.editorGroupService.mergeGroup(sourceGroup, this.groupView, mergeGroupOptions);
 					}
 
 					if (targetGroup) {
-						this.accessor.activateGroup(targetGroup);
+						this.editorGroupService.activateGroup(targetGroup);
 					}
 				}
 
@@ -288,25 +308,37 @@ class DropOverlay extends Themable {
 			const data = this.editorTransfer.getData(DraggedEditorIdentifier.prototype);
 			if (Array.isArray(data)) {
 				const draggedEditor = data[0].identifier;
-				const targetGroup = ensureTargetGroup();
 
-				const sourceGroup = this.accessor.getGroup(draggedEditor.groupId);
+				const sourceGroup = this.editorGroupService.getGroup(draggedEditor.groupId);
 				if (sourceGroup) {
-					if (sourceGroup === targetGroup) {
-						return;
+					const copyEditor = this.isCopyOperation(event, draggedEditor);
+					let targetGroup: IEditorGroup | undefined = undefined;
+
+					// Optimization: if we move the last editor of an editor group
+					// and we are configured to close empty editor groups, we can
+					// rather move the entire editor group according to the direction
+					if (this.editorGroupService.partOptions.closeEmptyGroups && sourceGroup.count === 1 && typeof splitDirection === 'number' && !copyEditor) {
+						targetGroup = this.editorGroupService.moveGroup(sourceGroup, this.groupView, splitDirection);
 					}
 
-					// Open in target group
-					const options = fillActiveEditorViewState(sourceGroup, draggedEditor.editor, {
-						pinned: true,										// always pin dropped editor
-						sticky: sourceGroup.isSticky(draggedEditor.editor),	// preserve sticky state
-					});
+					// In any other case do a normal move/copy operation
+					else {
+						targetGroup = ensureTargetGroup();
+						if (sourceGroup === targetGroup) {
+							return;
+						}
 
-					const copyEditor = this.isCopyOperation(event, draggedEditor);
-					if (!copyEditor) {
-						sourceGroup.moveEditor(draggedEditor.editor, targetGroup, options);
-					} else {
-						sourceGroup.copyEditor(draggedEditor.editor, targetGroup, options);
+						// Open in target group
+						const options = fillActiveEditorViewState(sourceGroup, draggedEditor.editor, {
+							pinned: true,										// always pin dropped editor
+							sticky: sourceGroup.isSticky(draggedEditor.editor),	// preserve sticky state
+						});
+
+						if (!copyEditor) {
+							sourceGroup.moveEditor(draggedEditor.editor, targetGroup, options);
+						} else {
+							sourceGroup.copyEditor(draggedEditor.editor, targetGroup, options);
+						}
 					}
 
 					// Ensure target has focus
@@ -329,8 +361,9 @@ class DropOverlay extends Themable {
 						editors.push(...treeDropData.map(editor => ({ ...editor, options: { ...editor.options, pinned: true } })));
 					}
 				}
-
-				this.editorService.openEditors(editors, ensureTargetGroup(), { validateTrust: true });
+				if (editors.length) {
+					this.editorService.openEditors(editors, ensureTargetGroup(), { validateTrust: true });
+				}
 			}
 
 			this.treeItemsTransfer.clearData(DraggedTreeItemsIdentifier.prototype);
@@ -339,7 +372,7 @@ class DropOverlay extends Themable {
 		// Check for URI transfer
 		else {
 			const dropHandler = this.instantiationService.createInstance(ResourcesDropHandler, { allowWorkspaceOpen: !isWeb || isTemporaryWorkspace(this.contextService.getWorkspace()) });
-			dropHandler.handleDrop(event, () => ensureTargetGroup(), targetGroup => targetGroup?.focus());
+			dropHandler.handleDrop(event, getWindow(this.groupView.element), () => ensureTargetGroup(), targetGroup => targetGroup?.focus());
 		}
 	}
 
@@ -356,7 +389,7 @@ class DropOverlay extends Themable {
 	}
 
 	private positionOverlay(mousePosX: number, mousePosY: number, isDraggingGroup: boolean, enableSplitting: boolean): void {
-		const preferSplitVertically = this.accessor.partOptions.openSideBySideDirection === 'right';
+		const preferSplitVertically = this.editorGroupService.partOptions.openSideBySideDirection === 'right';
 
 		const editorControlWidth = this.groupView.element.clientWidth;
 		const editorControlHeight = this.groupView.element.clientHeight - this.getOverlayOffsetHeight();
@@ -385,15 +418,6 @@ class DropOverlay extends Themable {
 
 		const splitWidthThreshold = editorControlWidth / 3;		// offer to split left/right at 33%
 		const splitHeightThreshold = editorControlHeight / 3;	// offer to split up/down at 33%
-
-		// Enable to debug the drop threshold square
-		// let child = this.overlay.children.item(0) as HTMLElement || this.overlay.appendChild(document.createElement('div'));
-		// child.style.backgroundColor = 'red';
-		// child.style.position = 'absolute';
-		// child.style.width = (groupViewWidth - (2 * edgeWidthThreshold)) + 'px';
-		// child.style.height = (groupViewHeight - (2 * edgeHeightThreshold)) + 'px';
-		// child.style.left = edgeWidthThreshold + 'px';
-		// child.style.top = edgeHeightThreshold + 'px';
 
 		// No split if mouse is above certain threshold in the center of the view
 		let splitDirection: GroupDirection | undefined;
@@ -505,7 +529,7 @@ class DropOverlay extends Themable {
 	private getOverlayOffsetHeight(): number {
 
 		// With tabs and opened editors: use the area below tabs as drop target
-		if (!this.groupView.isEmpty && this.accessor.partOptions.showTabs) {
+		if (!this.groupView.isEmpty && this.editorGroupService.partOptions.showTabs === 'multiple') {
 			return this.groupView.titleHeight.offset;
 		}
 
@@ -543,14 +567,6 @@ class DropOverlay extends Themable {
 	}
 }
 
-export interface IEditorDropTargetDelegate {
-
-	/**
-	 * A helper to figure out if the drop target contains the provided group.
-	 */
-	containsGroup?(groupView: IEditorGroupView): boolean;
-}
-
 export class EditorDropTarget extends Themable {
 
 	private _overlay?: DropOverlay;
@@ -561,9 +577,9 @@ export class EditorDropTarget extends Themable {
 	private readonly groupTransfer = LocalSelectionTransfer.getInstance<DraggedEditorGroupIdentifier>();
 
 	constructor(
-		private accessor: IEditorGroupsAccessor,
-		private container: HTMLElement,
+		private readonly container: HTMLElement,
 		private readonly delegate: IEditorDropTargetDelegate,
+		@IEditorGroupsService private readonly editorGroupService: IEditorGroupsService,
 		@IThemeService themeService: IThemeService,
 		@IConfigurationService private readonly configurationService: IConfigurationService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService
@@ -584,11 +600,13 @@ export class EditorDropTarget extends Themable {
 	private registerListeners(): void {
 		this._register(addDisposableListener(this.container, EventType.DRAG_ENTER, e => this.onDragEnter(e)));
 		this._register(addDisposableListener(this.container, EventType.DRAG_LEAVE, () => this.onDragLeave()));
-		[this.container, window].forEach(node => this._register(addDisposableListener(node as HTMLElement, EventType.DRAG_END, () => this.onDragEnd())));
+		for (const target of [this.container, getWindow(this.container)]) {
+			this._register(addDisposableListener(target, EventType.DRAG_END, () => this.onDragEnd()));
+		}
 	}
 
 	private onDragEnter(event: DragEvent): void {
-		if (isDragIntoEditorEvent(this.configurationService, event)) {
+		if (isDropIntoEditorEnabledGlobally(this.configurationService) && isDragIntoEditorEvent(event)) {
 			return;
 		}
 
@@ -623,7 +641,7 @@ export class EditorDropTarget extends Themable {
 			if (!this.overlay) {
 				const targetGroupView = this.findTargetGroupView(target);
 				if (targetGroupView) {
-					this._overlay = this.instantiationService.createInstance(DropOverlay, this.accessor, targetGroupView);
+					this._overlay = this.instantiationService.createInstance(DropOverlay, targetGroupView);
 				}
 			}
 		}
@@ -645,7 +663,7 @@ export class EditorDropTarget extends Themable {
 	}
 
 	private findTargetGroupView(child: HTMLElement): IEditorGroupView | undefined {
-		const groups = this.accessor.groups;
+		const groups = this.editorGroupService.groups as IEditorGroupView[];
 
 		return groups.find(groupView => isAncestor(child, groupView.element) || this.delegate.containsGroup?.(groupView));
 	}

@@ -7,45 +7,44 @@ import { localize } from 'vs/nls';
 import { URI } from 'vs/base/common/uri';
 import { onUnexpectedError } from 'vs/base/common/errors';
 import { equals } from 'vs/base/common/objects';
-import { EventType, EventHelper, addDisposableListener, scheduleAtNextAnimationFrame, ModifierKeyEmitter } from 'vs/base/browser/dom';
+import { EventType, EventHelper, addDisposableListener, ModifierKeyEmitter, getActiveElement, hasWindow, getWindow, getWindowById, getWindowId } from 'vs/base/browser/dom';
 import { Separator, WorkbenchActionExecutedClassification, WorkbenchActionExecutedEvent } from 'vs/base/common/actions';
 import { IFileService } from 'vs/platform/files/common/files';
-import { EditorResourceAccessor, IUntitledTextResourceEditorInput, SideBySideEditor, pathsToEditors, IResourceDiffEditorInput, IUntypedEditorInput } from 'vs/workbench/common/editor';
+import { EditorResourceAccessor, IUntitledTextResourceEditorInput, SideBySideEditor, pathsToEditors, IResourceDiffEditorInput, IUntypedEditorInput, IEditorPane, isResourceEditorInput, IResourceMergeEditorInput } from 'vs/workbench/common/editor';
 import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
 import { WindowMinimumSize, IOpenFileRequest, IWindowsConfiguration, getTitleBarStyle, IAddFoldersRequest, INativeRunActionInWindowRequest, INativeRunKeybindingInWindowRequest, INativeOpenFileRequest } from 'vs/platform/window/common/window';
-import { ITitleService } from 'vs/workbench/services/title/common/titleService';
+import { ITitleService } from 'vs/workbench/services/title/browser/titleService';
 import { IWorkbenchThemeService } from 'vs/workbench/services/themes/common/workbenchThemeService';
 import { applyZoom } from 'vs/platform/window/electron-sandbox/window';
 import { setFullscreen, getZoomLevel } from 'vs/base/browser/browser';
 import { ICommandService, CommandsRegistry } from 'vs/platform/commands/common/commands';
 import { IResourceEditorInput } from 'vs/platform/editor/common/editor';
-import { ipcRenderer } from 'vs/base/parts/sandbox/electron-sandbox/globals';
+import { ipcRenderer, process } from 'vs/base/parts/sandbox/electron-sandbox/globals';
 import { IWorkspaceEditingService } from 'vs/workbench/services/workspaces/common/workspaceEditing';
 import { IMenuService, MenuId, IMenu, MenuItemAction, MenuRegistry } from 'vs/platform/actions/common/actions';
 import { ICommandAction } from 'vs/platform/action/common/action';
 import { createAndFillInActionBarActions } from 'vs/platform/actions/browser/menuEntryActionViewItem';
 import { RunOnceScheduler } from 'vs/base/common/async';
-import { Disposable, DisposableStore } from 'vs/base/common/lifecycle';
+import { DisposableStore } from 'vs/base/common/lifecycle';
 import { LifecyclePhase, ILifecycleService, WillShutdownEvent, ShutdownReason, BeforeShutdownErrorEvent, BeforeShutdownEvent } from 'vs/workbench/services/lifecycle/common/lifecycle';
 import { IWorkspaceFolderCreationData } from 'vs/platform/workspaces/common/workspaces';
 import { IIntegrityService } from 'vs/workbench/services/integrity/common/integrity';
 import { isWindows, isMacintosh, isCI } from 'vs/base/common/platform';
 import { IProductService } from 'vs/platform/product/common/productService';
-import { INotificationService, Severity } from 'vs/platform/notification/common/notification';
+import { INotificationService, NeverShowAgainScope, NotificationPriority, Severity } from 'vs/platform/notification/common/notification';
 import { IKeybindingService } from 'vs/platform/keybinding/common/keybinding';
 import { INativeWorkbenchEnvironmentService } from 'vs/workbench/services/environment/electron-sandbox/environmentService';
 import { IAccessibilityService, AccessibilitySupport } from 'vs/platform/accessibility/common/accessibility';
 import { WorkbenchState, IWorkspaceContextService } from 'vs/platform/workspace/common/workspace';
 import { coalesce } from 'vs/base/common/arrays';
-import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+import { ConfigurationTarget, IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IStorageService, StorageScope, StorageTarget } from 'vs/platform/storage/common/storage';
-import { assertIsDefined, isArray } from 'vs/base/common/types';
+import { assertIsDefined } from 'vs/base/common/types';
 import { IOpenerService, OpenOptions } from 'vs/platform/opener/common/opener';
 import { Schemas } from 'vs/base/common/network';
-import { INativeHostService } from 'vs/platform/native/electron-sandbox/native';
-import { posix, dirname } from 'vs/base/common/path';
-import { getBaseLabel } from 'vs/base/common/labels';
+import { INativeHostService } from 'vs/platform/native/common/native';
+import { posix } from 'vs/base/common/path';
 import { ITunnelService, extractLocalHostUriMetaDataForPortMapping } from 'vs/platform/tunnel/common/tunnel';
 import { IWorkbenchLayoutService, Parts, positionFromString, Position } from 'vs/workbench/services/layout/browser/layoutService';
 import { IWorkingCopyService } from 'vs/workbench/services/workingCopy/common/workingCopyService';
@@ -63,11 +62,18 @@ import { whenEditorClosed } from 'vs/workbench/browser/editor';
 import { ISharedProcessService } from 'vs/platform/ipc/electron-sandbox/services';
 import { IProgressService, ProgressLocation } from 'vs/platform/progress/common/progress';
 import { toErrorMessage } from 'vs/base/common/errorMessage';
-import { registerLegacyWindowDriver, registerWindowDriver } from 'vs/platform/driver/electron-sandbox/driver';
+import { ILabelService } from 'vs/platform/label/common/label';
+import { dirname } from 'vs/base/common/resources';
+import { IBannerService } from 'vs/workbench/services/banner/browser/bannerService';
+import { Codicon } from 'vs/base/common/codicons';
+import { IUriIdentityService } from 'vs/platform/uriIdentity/common/uriIdentity';
+import { IPreferencesService } from 'vs/workbench/services/preferences/common/preferences';
+import { IUtilityProcessWorkerWorkbenchService } from 'vs/workbench/services/utilityProcess/electron-sandbox/utilityProcessWorkerWorkbenchService';
+import { registerWindowDriver } from 'vs/workbench/services/driver/electron-sandbox/driver';
+import { mainWindow } from 'vs/base/browser/window';
+import { BaseWindow } from 'vs/workbench/browser/window';
 
-export class NativeWindow extends Disposable {
-
-	private static REMEMBER_PROXY_CREDENTIALS_KEY = 'window.rememberProxyCredentials';
+export class NativeWindow extends BaseWindow {
 
 	private touchBarMenu: IMenu | undefined;
 	private readonly touchBarDisposables = this._register(new DisposableStore());
@@ -75,14 +81,12 @@ export class NativeWindow extends Disposable {
 
 	private readonly customTitleContextMenuDisposable = this._register(new DisposableStore());
 
-	private previousConfiguredZoomLevel: number | undefined;
-
 	private readonly addFoldersScheduler = this._register(new RunOnceScheduler(() => this.doAddFolders(), 100));
 	private pendingFoldersToAdd: URI[] = [];
 
-	private readonly closeEmptyWindowScheduler = this._register(new RunOnceScheduler(() => this.onDidAllEditorsClose(), 50));
-
 	private isDocumentedEdited = false;
+
+	private readonly mainPartEditorService: IEditorService;
 
 	constructor(
 		@IEditorService private readonly editorService: IEditorService,
@@ -115,9 +119,16 @@ export class NativeWindow extends Disposable {
 		@ILogService private readonly logService: ILogService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@ISharedProcessService private readonly sharedProcessService: ISharedProcessService,
-		@IProgressService private readonly progressService: IProgressService
+		@IProgressService private readonly progressService: IProgressService,
+		@ILabelService private readonly labelService: ILabelService,
+		@IBannerService private readonly bannerService: IBannerService,
+		@IUriIdentityService private readonly uriIdentityService: IUriIdentityService,
+		@IPreferencesService private readonly preferencesService: IPreferencesService,
+		@IUtilityProcessWorkerWorkbenchService private readonly utilityProcessWorkerWorkbenchService: IUtilityProcessWorkerWorkbenchService
 	) {
-		super();
+		super(mainWindow);
+
+		this.mainPartEditorService = editorService.createScoped('main', this._store);
 
 		this.registerListeners();
 		this.create();
@@ -126,19 +137,19 @@ export class NativeWindow extends Disposable {
 	private registerListeners(): void {
 
 		// Layout
-		this._register(addDisposableListener(window, EventType.RESIZE, e => this.onWindowResize(e, true)));
+		this._register(addDisposableListener(mainWindow, EventType.RESIZE, () => this.layoutService.layout()));
 
 		// React to editor input changes
 		this._register(this.editorService.onDidActiveEditorChange(() => this.updateTouchbarMenu()));
 
-		// prevent opening a real URL inside the window
-		[EventType.DRAG_OVER, EventType.DROP].forEach(event => {
-			window.document.body.addEventListener(event, (e: DragEvent) => {
+		// Prevent opening a real URL inside the window
+		for (const event of [EventType.DRAG_OVER, EventType.DROP]) {
+			this._register(addDisposableListener(mainWindow.document.body, event, (e: DragEvent) => {
 				EventHelper.stop(e);
-			});
-		});
+			}));
+		}
 
-		// Support runAction event
+		// Support `runAction` event
 		ipcRenderer.on('vscode:runAction', async (event: unknown, request: INativeRunActionInWindowRequest) => {
 			const args: unknown[] = request.args || [];
 
@@ -167,8 +178,9 @@ export class NativeWindow extends Disposable {
 
 		// Support runKeybinding event
 		ipcRenderer.on('vscode:runKeybinding', (event: unknown, request: INativeRunKeybindingInWindowRequest) => {
-			if (document.activeElement) {
-				this.keybindingService.dispatchByUserSettingsLabel(request.userSettingsLabel, document.activeElement);
+			const activeElement = getActiveElement();
+			if (activeElement) {
+				this.keybindingService.dispatchByUserSettingsLabel(request.userSettingsLabel, activeElement);
 			}
 		});
 
@@ -180,61 +192,88 @@ export class NativeWindow extends Disposable {
 		});
 
 		// Support openFiles event for existing and new files
-		ipcRenderer.on('vscode:openFiles', (event: unknown, request: IOpenFileRequest) => this.onOpenFiles(request));
+		ipcRenderer.on('vscode:openFiles', (event: unknown, request: IOpenFileRequest) => { this.onOpenFiles(request); });
 
 		// Support addFolders event if we have a workspace opened
-		ipcRenderer.on('vscode:addFolders', (event: unknown, request: IAddFoldersRequest) => this.onAddFoldersRequest(request));
+		ipcRenderer.on('vscode:addFolders', (event: unknown, request: IAddFoldersRequest) => { this.onAddFoldersRequest(request); });
 
 		// Message support
-		ipcRenderer.on('vscode:showInfoMessage', (event: unknown, message: string) => this.notificationService.info(message));
+		ipcRenderer.on('vscode:showInfoMessage', (event: unknown, message: string) => { this.notificationService.info(message); });
 
 		// Shell Environment Issue Notifications
-		ipcRenderer.on('vscode:showResolveShellEnvError', (event: unknown, message: string) => this.notificationService.prompt(
-			Severity.Error,
-			message,
-			[{
-				label: localize('learnMore', "Learn More"),
-				run: () => this.openerService.open('https://go.microsoft.com/fwlink/?linkid=2149667')
-			}]
-		));
+		ipcRenderer.on('vscode:showResolveShellEnvError', (event: unknown, message: string) => {
+			this.notificationService.prompt(
+				Severity.Error,
+				message,
+				[{
+					label: localize('restart', "Restart"),
+					run: () => this.nativeHostService.relaunch()
+				},
+				{
+					label: localize('configure', "Configure"),
+					run: () => this.preferencesService.openUserSettings({ query: 'application.shellEnvironmentResolutionTimeout' })
+				},
+				{
+					label: localize('learnMore', "Learn More"),
+					run: () => this.openerService.open('https://go.microsoft.com/fwlink/?linkid=2149667')
+				}]
+			);
+		});
 
-		ipcRenderer.on('vscode:showCredentialsError', (event: unknown, message: string) => this.notificationService.prompt(
-			Severity.Error,
-			localize('keychainWriteError', "Writing login information to the keychain failed with error '{0}'.", message),
-			[{
-				label: localize('troubleshooting', "Troubleshooting Guide"),
-				run: () => this.openerService.open('https://go.microsoft.com/fwlink/?linkid=2190713')
-			}]
-		));
+		ipcRenderer.on('vscode:showCredentialsError', (event: unknown, message: string) => {
+			this.notificationService.prompt(
+				Severity.Error,
+				localize('keychainWriteError', "Writing login information to the keychain failed with error '{0}'.", message),
+				[{
+					label: localize('troubleshooting', "Troubleshooting Guide"),
+					run: () => this.openerService.open('https://go.microsoft.com/fwlink/?linkid=2190713')
+				}]
+			);
+		});
+
+		ipcRenderer.on('vscode:showTranslatedBuildWarning', (event: unknown, message: string) => {
+			this.notificationService.prompt(
+				Severity.Warning,
+				localize("runningTranslated", "You are running an emulated version of {0}. For better performance download the native arm64 version of {0} build for your machine.", this.productService.nameLong),
+				[{
+					label: localize('downloadArmBuild', "Download"),
+					run: () => {
+						const quality = this.productService.quality;
+						const stableURL = 'https://code.visualstudio.com/docs/?dv=osx';
+						const insidersURL = 'https://code.visualstudio.com/docs/?dv=osx&build=insiders';
+						this.openerService.open(quality === 'stable' ? stableURL : insidersURL);
+					}
+				}]
+			);
+		});
 
 		// Fullscreen Events
-		ipcRenderer.on('vscode:enterFullScreen', async () => setFullscreen(true));
-		ipcRenderer.on('vscode:leaveFullScreen', async () => setFullscreen(false));
+		ipcRenderer.on('vscode:enterFullScreen', async () => { setFullscreen(true); });
+		ipcRenderer.on('vscode:leaveFullScreen', async () => { setFullscreen(false); });
 
 		// Proxy Login Dialog
 		ipcRenderer.on('vscode:openProxyAuthenticationDialog', async (event: unknown, payload: { authInfo: AuthInfo; username?: string; password?: string; replyChannel: string }) => {
-			const rememberCredentials = this.storageService.getBoolean(NativeWindow.REMEMBER_PROXY_CREDENTIALS_KEY, StorageScope.GLOBAL);
-			const result = await this.dialogService.input(Severity.Warning, localize('proxyAuthRequired', "Proxy Authentication Required"),
-				[
-					localize({ key: 'loginButton', comment: ['&& denotes a mnemonic'] }, "&&Log In"),
-					localize({ key: 'cancelButton', comment: ['&& denotes a mnemonic'] }, "&&Cancel")
-				],
-				[
-					{ placeholder: localize('username', "Username"), value: payload.username },
-					{ placeholder: localize('password', "Password"), type: 'password', value: payload.password }
-				],
-				{
-					cancelId: 1,
-					detail: localize('proxyDetail', "The proxy {0} requires a username and password.", `${payload.authInfo.host}:${payload.authInfo.port}`),
-					checkbox: {
-						label: localize('rememberCredentials', "Remember my credentials"),
-						checked: rememberCredentials
-					}
-				});
+			const rememberCredentialsKey = 'window.rememberProxyCredentials';
+			const rememberCredentials = this.storageService.getBoolean(rememberCredentialsKey, StorageScope.APPLICATION);
+			const result = await this.dialogService.input({
+				type: 'warning',
+				message: localize('proxyAuthRequired', "Proxy Authentication Required"),
+				primaryButton: localize({ key: 'loginButton', comment: ['&& denotes a mnemonic'] }, "&&Log In"),
+				inputs:
+					[
+						{ placeholder: localize('username', "Username"), value: payload.username },
+						{ placeholder: localize('password', "Password"), type: 'password', value: payload.password }
+					],
+				detail: localize('proxyDetail', "The proxy {0} requires a username and password.", `${payload.authInfo.host}:${payload.authInfo.port}`),
+				checkbox: {
+					label: localize('rememberCredentials', "Remember my credentials"),
+					checked: rememberCredentials
+				}
+			});
 
 			// Reply back to the channel without result to indicate
 			// that the login dialog was cancelled
-			if (result.choice !== 0 || !result.values) {
+			if (!result.confirmed || !result.values) {
 				ipcRenderer.send(payload.replyChannel);
 			}
 
@@ -243,9 +282,9 @@ export class NativeWindow extends Disposable {
 
 				// Update state based on checkbox
 				if (result.checkboxChecked) {
-					this.storageService.store(NativeWindow.REMEMBER_PROXY_CREDENTIALS_KEY, true, StorageScope.GLOBAL, StorageTarget.MACHINE);
+					this.storageService.store(rememberCredentialsKey, true, StorageScope.APPLICATION, StorageTarget.MACHINE);
 				} else {
-					this.storageService.remove(NativeWindow.REMEMBER_PROXY_CREDENTIALS_KEY, StorageScope.GLOBAL);
+					this.storageService.remove(rememberCredentialsKey, StorageScope.APPLICATION);
 				}
 
 				// Reply back to main side with credentials
@@ -259,8 +298,37 @@ export class NativeWindow extends Disposable {
 			this.accessibilityService.setAccessibilitySupport(accessibilitySupportEnabled ? AccessibilitySupport.Enabled : AccessibilitySupport.Disabled);
 		});
 
+		// Allow to update security settings around allowed UNC Host
+		ipcRenderer.on('vscode:configureAllowedUNCHost', (event: unknown, host: string) => {
+			if (!isWindows) {
+				return; // only supported on Windows
+			}
+
+			const allowedUncHosts = new Set<string>();
+
+			const configuredAllowedUncHosts = this.configurationService.getValue<string[] | undefined>('security.allowedUNCHosts',) ?? [];
+			if (Array.isArray(configuredAllowedUncHosts)) {
+				for (const configuredAllowedUncHost of configuredAllowedUncHosts) {
+					if (typeof configuredAllowedUncHost === 'string') {
+						allowedUncHosts.add(configuredAllowedUncHost);
+					}
+				}
+			}
+
+			if (!allowedUncHosts.has(host)) {
+				allowedUncHosts.add(host);
+
+				this.configurationService.updateValue('security.allowedUNCHosts', [...allowedUncHosts.values()], ConfigurationTarget.USER);
+			}
+		});
+
+		// Allow to update security settings around protocol handlers
+		ipcRenderer.on('vscode:disablePromptForProtocolHandling', (event: unknown, kind: 'local' | 'remote') => {
+			const setting = kind === 'local' ? 'security.promptForLocalFileProtocolHandling' : 'security.promptForRemoteFileProtocolHandling';
+			this.configurationService.updateValue(setting, false, ConfigurationTarget.USER_LOCAL);
+		});
+
 		// Zoom level changes
-		this.updateWindowZoomLevel();
 		this._register(this.configurationService.onDidChangeConfiguration(e => {
 			if (e.affectsConfiguration('window.zoomLevel')) {
 				this.updateWindowZoomLevel();
@@ -269,8 +337,8 @@ export class NativeWindow extends Disposable {
 			}
 		}));
 
-		// Listen to visible editor changes
-		this._register(this.editorService.onDidVisibleEditorsChange(() => this.onDidChangeVisibleEditors()));
+		// Listen to visible editor changes (debounced in case a new editor opens immediately after)
+		this._register(Event.debounce(this.editorService.onDidVisibleEditorsChange, () => undefined, 0, undefined, undefined, undefined, this._store)(() => this.maybeCloseWindow()));
 
 		// Listen to editor closing (if we run with --wait)
 		const filesToWait = this.environmentService.filesToWait;
@@ -280,26 +348,39 @@ export class NativeWindow extends Disposable {
 
 		// macOS OS integration
 		if (isMacintosh) {
-			this._register(this.editorService.onDidActiveEditorChange(() => {
-				const file = EditorResourceAccessor.getOriginalUri(this.editorService.activeEditor, { supportSideBySide: SideBySideEditor.PRIMARY, filterByScheme: Schemas.file });
+			const updateRepresentedFilename = (editorService: IEditorService, targetWindowId: number | undefined) => {
+				const file = EditorResourceAccessor.getOriginalUri(editorService.activeEditor, { supportSideBySide: SideBySideEditor.PRIMARY, filterByScheme: Schemas.file });
 
 				// Represented Filename
-				this.updateRepresentedFilename(file?.fsPath);
+				this.nativeHostService.setRepresentedFilename(file?.fsPath ?? '', { targetWindowId });
 
-				// Custom title menu
-				this.provideCustomTitleContextMenu(file?.fsPath);
+				// Custom title menu (main window only currently)
+				if (typeof targetWindowId !== 'number') {
+					this.provideCustomTitleContextMenu(file?.fsPath);
+				}
+			};
+
+			this._register(this.mainPartEditorService.onDidActiveEditorChange(() => updateRepresentedFilename(this.mainPartEditorService, undefined)));
+
+			this._register(this.editorGroupService.onDidCreateAuxiliaryEditorPart(({ part, disposables }) => {
+				const auxiliaryEditorService = this.editorService.createScoped(part, disposables);
+				disposables.add(auxiliaryEditorService.onDidActiveEditorChange(() => updateRepresentedFilename(auxiliaryEditorService, part.windowId)));
 			}));
 		}
 
 		// Maximize/Restore on doubleclick (for macOS custom title)
 		if (isMacintosh && getTitleBarStyle(this.configurationService) === 'custom') {
-			const titlePart = assertIsDefined(this.layoutService.getContainer(Parts.TITLEBAR_PART));
+			this._register(Event.runAndSubscribe(this.layoutService.onDidAddContainer, ({ container, disposables }) => {
+				const targetWindow = getWindow(container);
+				const targetWindowId = targetWindow.vscodeWindowId;
+				const titlePart = assertIsDefined(this.layoutService.getContainer(targetWindow, Parts.TITLEBAR_PART));
 
-			this._register(addDisposableListener(titlePart, EventType.DBLCLICK, e => {
-				EventHelper.stop(e);
+				disposables.add(addDisposableListener(titlePart, EventType.DBLCLICK, e => {
+					EventHelper.stop(e);
 
-				this.nativeHostService.handleTitleDoubleClick();
-			}));
+					this.nativeHostService.handleTitleDoubleClick({ targetWindowId });
+				}));
+			}, { container: this.layoutService.mainContainer, disposables: this._store }));
 		}
 
 		// Document edited: indicate for dirty working copies
@@ -309,18 +390,17 @@ export class NativeWindow extends Disposable {
 				return; // do not indicate dirty of working copies that are auto saved after short delay
 			}
 
-			this.updateDocumentEdited(gotDirty);
+			this.updateDocumentEdited(gotDirty ? true : undefined);
 		}));
 
-		this.updateDocumentEdited();
+		this.updateDocumentEdited(undefined);
 
 		// Detect minimize / maximize
 		this._register(Event.any(
-			Event.map(Event.filter(this.nativeHostService.onDidMaximizeWindow, id => id === this.nativeHostService.windowId), () => true),
-			Event.map(Event.filter(this.nativeHostService.onDidUnmaximizeWindow, id => id === this.nativeHostService.windowId), () => false)
-		)(e => this.onDidChangeWindowMaximized(e)));
-
-		this.onDidChangeWindowMaximized(this.environmentService.window.maximized ?? false);
+			Event.map(Event.filter(this.nativeHostService.onDidMaximizeWindow, windowId => !!hasWindow(windowId)), windowId => ({ maximized: true, windowId })),
+			Event.map(Event.filter(this.nativeHostService.onDidUnmaximizeWindow, windowId => !!hasWindow(windowId)), windowId => ({ maximized: false, windowId }))
+		)(e => this.layoutService.updateWindowMaximizedState(getWindowById(e.windowId)!.window, e.maximized)));
+		this.layoutService.updateWindowMaximizedState(mainWindow, this.environmentService.window.maximized ?? false);
 
 		// Detect panel position to determine minimum width
 		this._register(this.layoutService.onDidChangePanelPosition(pos => this.onDidChangePanelPosition(positionFromString(pos))));
@@ -359,7 +439,7 @@ export class NativeWindow extends Disposable {
 
 					// Progress for long running shutdown
 					if (confirmed) {
-						this.progressOnShutdown(reason);
+						this.progressOnBeforeShutdown(reason);
 					}
 
 					return !confirmed;
@@ -368,10 +448,10 @@ export class NativeWindow extends Disposable {
 		}
 
 		// Progress for long running shutdown
-		this.progressOnShutdown(reason);
+		this.progressOnBeforeShutdown(reason);
 	}
 
-	private progressOnShutdown(reason: ShutdownReason): void {
+	private progressOnBeforeShutdown(reason: ShutdownReason): void {
 		this.progressService.withProgress({
 			location: ProgressLocation.Window, 	// use window progress to not be too annoying about this operation
 			delay: 800,							// delay so that it only appears when operation takes a long time
@@ -397,7 +477,6 @@ export class NativeWindow extends Disposable {
 			localize({ key: 'closeWindowButtonLabel', comment: ['&& denotes a mnemonic'] }, "&&Close Window");
 
 		const res = await dialogService.confirm({
-			type: 'question',
 			message,
 			primaryButton,
 			checkbox: {
@@ -406,7 +485,7 @@ export class NativeWindow extends Disposable {
 		});
 
 		// Update setting if checkbox checked
-		if (res.checkboxChecked) {
+		if (res.confirmed && res.checkboxChecked) {
 			await configurationService.updateValue('window.confirmBeforeClose', 'never');
 		}
 
@@ -414,24 +493,32 @@ export class NativeWindow extends Disposable {
 	}
 
 	private onBeforeShutdownError({ error, reason }: BeforeShutdownErrorEvent): void {
-		this.dialogService.show(Severity.Error, this.toShutdownLabel(reason, true), undefined, {
-			detail: localize('shutdownErrorDetail', "Error: {0}", toErrorMessage(error))
-		});
+		this.dialogService.error(this.toShutdownLabel(reason, true), localize('shutdownErrorDetail', "Error: {0}", toErrorMessage(error)));
 	}
 
-	private onWillShutdown({ reason, force }: WillShutdownEvent): void {
-		this.progressService.withProgress({
-			location: ProgressLocation.Dialog, 				// use a dialog to prevent the user from making any more interactions now
-			buttons: [this.toForceShutdownLabel(reason)],	// allow to force shutdown anyway
-			delay: 800,										// delay so that it only appears when operation takes a long time
-			cancellable: false,								// do not allow to cancel
-			sticky: true,									// do not allow to dismiss
-			title: this.toShutdownLabel(reason, false)
-		}, () => {
-			return Event.toPromise(this.lifecycleService.onDidShutdown); // dismiss this dialog when we actually shutdown
-		}, () => {
-			force();
-		});
+	private onWillShutdown({ reason, force, joiners }: WillShutdownEvent): void {
+
+		// Delay so that the dialog only appears after timeout
+		const shutdownDialogScheduler = new RunOnceScheduler(() => {
+			const pendingJoiners = joiners();
+
+			this.progressService.withProgress({
+				location: ProgressLocation.Dialog, 				// use a dialog to prevent the user from making any more interactions now
+				buttons: [this.toForceShutdownLabel(reason)],	// allow to force shutdown anyway
+				cancellable: false,								// do not allow to cancel
+				sticky: true,									// do not allow to dismiss
+				title: this.toShutdownLabel(reason, false),
+				detail: pendingJoiners.length > 0 ? localize('willShutdownDetail', "The following operations are still running: \n{0}", pendingJoiners.map(joiner => `- ${joiner.label}`).join('\n')) : undefined
+			}, () => {
+				return Event.toPromise(this.lifecycleService.onDidShutdown); // dismiss this dialog when we actually shutdown
+			}, () => {
+				force();
+			});
+		}, 1200);
+		shutdownDialogScheduler.schedule();
+
+		// Dispose scheduler when we actually shutdown
+		Event.once(this.lifecycleService.onDidShutdown)(() => shutdownDialogScheduler.dispose());
 	}
 
 	private toShutdownLabel(reason: ShutdownReason, isError: boolean): string {
@@ -473,34 +560,19 @@ export class NativeWindow extends Disposable {
 		}
 	}
 
-	private onWindowResize(e: UIEvent, retry: boolean): void {
-		if (e.target === window) {
-			if (window.document && window.document.body && window.document.body.clientWidth === 0) {
-				// TODO@electron this is an electron issue on macOS when simple fullscreen is enabled
-				// where for some reason the window clientWidth is reported as 0 when switching
-				// between simple fullscreen and normal screen. In that case we schedule the layout
-				// call at the next animation frame once, in the hope that the dimensions are
-				// proper then.
-				if (retry) {
-					scheduleAtNextAnimationFrame(() => this.onWindowResize(e, false));
-				}
-				return;
-			}
-
-			this.layoutService.layout();
+	private updateDocumentEdited(documentEdited: true | undefined): void {
+		let setDocumentEdited: boolean;
+		if (typeof documentEdited === 'boolean') {
+			setDocumentEdited = documentEdited;
+		} else {
+			setDocumentEdited = this.workingCopyService.hasDirty;
 		}
-	}
 
-	private updateDocumentEdited(isDirty = this.workingCopyService.hasDirty): void {
-		if ((!this.isDocumentedEdited && isDirty) || (this.isDocumentedEdited && !isDirty)) {
-			this.isDocumentedEdited = isDirty;
+		if ((!this.isDocumentedEdited && setDocumentEdited) || (this.isDocumentedEdited && !setDocumentEdited)) {
+			this.isDocumentedEdited = setDocumentEdited;
 
-			this.nativeHostService.setDocumentEdited(isDirty);
+			this.nativeHostService.setDocumentEdited(setDocumentEdited);
 		}
-	}
-
-	private onDidChangeWindowMaximized(maximized: boolean): void {
-		this.layoutService.updateWindowMaximizedState(maximized);
 	}
 
 	private getWindowMinimumWidth(panelPosition: Position = this.layoutService.getPanelPosition()): number {
@@ -520,49 +592,41 @@ export class NativeWindow extends Disposable {
 		this.nativeHostService.setMinimumSize(minWidth, undefined);
 	}
 
-	private onDidChangeVisibleEditors(): void {
-
-		// Close when empty: check if we should close the window based on the setting
-		// Overruled by: window has a workspace opened or this window is for extension development
-		// or setting is disabled. Also enabled when running with --wait from the command line.
-		const visibleEditorPanes = this.editorService.visibleEditorPanes;
-		if (visibleEditorPanes.length === 0 && this.contextService.getWorkbenchState() === WorkbenchState.EMPTY && !this.environmentService.isExtensionDevelopment) {
-			const closeWhenEmpty = this.configurationService.getValue('window.closeWhenEmpty');
-			if (closeWhenEmpty || this.environmentService.args.wait) {
-				this.closeEmptyWindowScheduler.schedule();
-			}
+	private maybeCloseWindow(): void {
+		const closeWhenEmpty = this.configurationService.getValue('window.closeWhenEmpty') || this.environmentService.args.wait;
+		if (!closeWhenEmpty) {
+			return; // return early if configured to not close when empty
 		}
-	}
 
-	private onDidAllEditorsClose(): void {
-		const visibleEditorPanes = this.editorService.visibleEditorPanes.length;
-		if (visibleEditorPanes === 0) {
-			this.nativeHostService.closeWindow();
+		// Close empty editor groups based on setting and environment
+		for (const editorPart of this.editorGroupService.parts) {
+			if (editorPart.groups.some(group => !group.isEmpty)) {
+				continue; // not empty
+			}
+
+			if (editorPart === this.editorGroupService.mainPart && (
+				this.contextService.getWorkbenchState() !== WorkbenchState.EMPTY ||	// only for empty windows
+				this.environmentService.isExtensionDevelopment ||					// not when developing an extension
+				this.editorService.visibleEditors.length > 0						// not when there are still editors open in other windows
+			)) {
+				continue;
+			}
+
+			if (editorPart === this.editorGroupService.mainPart) {
+				this.nativeHostService.closeWindow();
+			} else {
+				editorPart.removeGroup(editorPart.activeGroup);
+			}
 		}
 	}
 
 	private updateWindowZoomLevel(): void {
 		const windowConfig = this.configurationService.getValue<IWindowsConfiguration>();
+		const windowZoomLevel = typeof windowConfig.window?.zoomLevel === 'number' ? windowConfig.window.zoomLevel : 0;
 
-		let configuredZoomLevel = 0;
-		if (windowConfig.window && typeof windowConfig.window.zoomLevel === 'number') {
-			configuredZoomLevel = windowConfig.window.zoomLevel;
-
-			// Leave early if the configured zoom level did not change (https://github.com/microsoft/vscode/issues/1536)
-			if (this.previousConfiguredZoomLevel === configuredZoomLevel) {
-				return;
-			}
-
-			this.previousConfiguredZoomLevel = configuredZoomLevel;
+		if (getZoomLevel() !== windowZoomLevel) {
+			applyZoom(windowZoomLevel);
 		}
-
-		if (getZoomLevel() !== configuredZoomLevel) {
-			applyZoom(configuredZoomLevel);
-		}
-	}
-
-	private updateRepresentedFilename(filePath: string | undefined): void {
-		this.nativeHostService.setRepresentedFilename(filePath ? filePath : '');
 	}
 
 	private provideCustomTitleContextMenu(filePath: string | undefined): void {
@@ -585,18 +649,18 @@ export class NativeWindow extends Disposable {
 				pathOffset++; // for segments which are not the file name we want to open the folder
 			}
 
-			const path = segments.slice(0, pathOffset).join(posix.sep);
+			const path = URI.file(segments.slice(0, pathOffset).join(posix.sep));
 
 			let label: string;
 			if (!isFile) {
-				label = getBaseLabel(dirname(path));
+				label = this.labelService.getUriBasenameLabel(dirname(path));
 			} else {
-				label = getBaseLabel(path);
+				label = this.labelService.getUriBasenameLabel(path);
 			}
 
 			const commandId = `workbench.action.revealPathInFinder${i}`;
-			this.customTitleContextMenuDisposable.add(CommandsRegistry.registerCommand(commandId, () => this.nativeHostService.showItemInFolder(path)));
-			this.customTitleContextMenuDisposable.add(MenuRegistry.appendMenuItem(MenuId.TitleBarContext, { command: { id: commandId, title: label || posix.sep }, order: -i }));
+			this.customTitleContextMenuDisposable.add(CommandsRegistry.registerCommand(commandId, () => this.nativeHostService.showItemInFolder(path.fsPath)));
+			this.customTitleContextMenuDisposable.add(MenuRegistry.appendMenuItem(MenuId.TitleBarTitleContext, { command: { id: commandId, title: label || posix.sep }, order: -i, group: '1_file' }));
 		}
 	}
 
@@ -607,68 +671,154 @@ export class NativeWindow extends Disposable {
 
 		// Notify some services about lifecycle phases
 		this.lifecycleService.when(LifecyclePhase.Ready).then(() => this.nativeHostService.notifyReady());
-		this.lifecycleService.when(LifecyclePhase.Restored).then(() => this.sharedProcessService.notifyRestored());
+		this.lifecycleService.when(LifecyclePhase.Restored).then(() => {
+			this.sharedProcessService.notifyRestored();
+			this.utilityProcessWorkerWorkbenchService.notifyRestored();
+		});
 
-		// Integrity warning
-		this.integrityService.isPure().then(({ isPure }) => this.titleService.updateProperties({ isPure }));
+		// Check for situations that are worth warning the user about
+		this.handleWarnings();
 
-		// Root warning
-		this.lifecycleService.when(LifecyclePhase.Restored).then(async () => {
+		// Touchbar menu (if enabled)
+		this.updateTouchbarMenu();
+
+		// Smoke Test Driver
+		if (this.environmentService.enableSmokeTestDriver) {
+			this.setupDriver();
+		}
+
+		// Patch methods that we need to work properly
+		this.patchMethods();
+	}
+
+	private patchMethods(): void {
+
+		// Enable `window.focus()` to work in Electron by
+		// asking the main process to focus the window.
+		// https://github.com/electron/electron/issues/25578
+		const that = this;
+		const originalWindowFocus = mainWindow.focus.bind(mainWindow);
+		mainWindow.focus = function () {
+			originalWindowFocus();
+
+			if (!mainWindow.document.hasFocus()) {
+				that.nativeHostService.focusWindow({ targetWindowId: getWindowId(mainWindow) });
+			}
+		};
+	}
+
+	private async handleWarnings(): Promise<void> {
+
+		// Check for cyclic dependencies
+		if (typeof require.hasDependencyCycle === 'function' && require.hasDependencyCycle()) {
+			if (isCI) {
+				this.logService.error('Error: There is a dependency cycle in the AMD modules that needs to be resolved!');
+				this.nativeHostService.exit(37); // running on a build machine, just exit without showing a dialog
+			} else {
+				this.dialogService.error(localize('loaderCycle', "There is a dependency cycle in the AMD modules that needs to be resolved!"));
+				this.nativeHostService.openDevTools();
+			}
+		}
+
+		// After restored phase is fine for the following ones
+		await this.lifecycleService.when(LifecyclePhase.Restored);
+
+		// Integrity / Root warning
+		(async () => {
 			const isAdmin = await this.nativeHostService.isAdmin();
+			const { isPure } = await this.integrityService.isPure();
 
-			// Update title
-			this.titleService.updateProperties({ isAdmin });
+			// Update to title
+			this.titleService.updateProperties({ isPure, isAdmin });
 
 			// Show warning message (unix only)
 			if (isAdmin && !isWindows) {
 				this.notificationService.warn(localize('runningAsRoot', "It is not recommended to run {0} as root user.", this.productService.nameShort));
 			}
-		});
+		})();
 
-		// Touchbar menu (if enabled)
-		this.updateTouchbarMenu();
-
-		// Check for cyclic dependencies
-		if (require.hasDependencyCycle()) {
-			if (isCI) {
-				this.logService.error('Error: There is a dependency cycle in the AMD modules that needs to be resolved!');
-				this.nativeHostService.exit(37); // running on a build machine, just exit without showing a dialog
+		// Installation Dir Warning
+		if (this.environmentService.isBuilt) {
+			let installLocationUri: URI;
+			if (isMacintosh) {
+				// appRoot = /Applications/Visual Studio Code - Insiders.app/Contents/Resources/app
+				installLocationUri = dirname(dirname(dirname(URI.file(this.environmentService.appRoot))));
 			} else {
-				this.dialogService.show(Severity.Error, localize('loaderCycle', "There is a dependency cycle in the AMD modules that needs to be resolved!"));
-				this.nativeHostService.openDevTools();
+				// appRoot = C:\Users\<name>\AppData\Local\Programs\Microsoft VS Code Insiders\resources\app
+				// appRoot = /usr/share/code-insiders/resources/app
+				installLocationUri = dirname(dirname(URI.file(this.environmentService.appRoot)));
+			}
+
+			for (const folder of this.contextService.getWorkspace().folders) {
+				if (this.uriIdentityService.extUri.isEqualOrParent(folder.uri, installLocationUri)) {
+					this.bannerService.show({
+						id: 'appRootWarning.banner',
+						message: localize('appRootWarning.banner', "Files you store within the installation folder ('{0}') may be OVERWRITTEN or DELETED IRREVERSIBLY without warning at update time.", this.labelService.getUriLabel(installLocationUri)),
+						icon: Codicon.warning
+					});
+
+					break;
+				}
 			}
 		}
 
-		// Smoke Test Driver
-		this.setupDriver();
+		// macOS 10.13 and 10.14 warning
+		if (isMacintosh) {
+			const majorVersion = this.environmentService.os.release.split('.')[0];
+			const eolReleases = new Map<string, string>([
+				['17', 'macOS High Sierra'],
+				['18', 'macOS Mojave'],
+			]);
+
+			if (eolReleases.has(majorVersion)) {
+				const message = localize('macoseolmessage', "{0} on {1} will soon stop receiving updates. Consider upgrading your macOS version.", this.productService.nameLong, eolReleases.get(majorVersion));
+
+				this.notificationService.prompt(
+					Severity.Warning,
+					message,
+					[{
+						label: localize('learnMore', "Learn More"),
+						run: () => this.openerService.open(URI.parse('https://aka.ms/vscode-faq-old-macOS'))
+					}],
+					{
+						neverShowAgain: { id: 'macoseol', isSecondary: true, scope: NeverShowAgainScope.APPLICATION },
+						priority: NotificationPriority.URGENT,
+						sticky: true
+					}
+				);
+			}
+		}
+
+		// Slow shell environment progress indicator
+		const shellEnv = process.shellEnv();
+		this.progressService.withProgress({
+			title: localize('resolveShellEnvironment', "Resolving shell environment..."),
+			location: ProgressLocation.Window,
+			delay: 1600,
+			buttons: [localize('learnMore', "Learn More")]
+		}, () => shellEnv, () => this.openerService.open('https://go.microsoft.com/fwlink/?linkid=2149667'));
 	}
 
 	private setupDriver(): void {
+		const that = this;
+		let pendingQuit = false;
 
-		// Modern Driver
-		if (this.environmentService.enableSmokeTestDriver) {
-			const that = this;
-			registerWindowDriver({
-				async exitApplication(): Promise<number> {
-					that.nativeHostService.quit();
-
-					return that.environmentService.mainPid;
+		registerWindowDriver(this.instantiationService, {
+			async exitApplication(): Promise<void> {
+				if (pendingQuit) {
+					that.logService.info('[driver] not handling exitApplication() due to pending quit() call');
+					return;
 				}
-			});
-		}
 
-		// Legacy Driver (TODO@bpasero remove me eventually)
-		else if (this.environmentService.args.driver) {
-			this.instantiationService.invokeFunction(async accessor => this._register(await registerLegacyWindowDriver(accessor, this.nativeHostService.windowId)));
-		}
+				that.logService.info('[driver] handling exitApplication()');
+
+				pendingQuit = true;
+				return that.nativeHostService.quit();
+			}
+		});
 	}
 
 	private setupOpenHandlers(): void {
-
-		// Block window.open() calls
-		window.open = function (): Window | null {
-			throw new Error('Prevented call to window.open(). Use IOpenerService instead!');
-		};
 
 		// Handle external open() calls
 		this.openerService.setDefaultExternalOpener({
@@ -698,13 +848,17 @@ export class NativeWindow extends Disposable {
 								return (await this.remoteAuthorityResolverService.resolveAuthority(remoteAuthority)).authority;
 							}
 						} : undefined;
-						const tunnel = await this.tunnelService.openTunnel(addressProvider, portMappingRequest.address, portMappingRequest.port);
-						if (tunnel) {
-							const addressAsUri = URI.parse(tunnel.localAddress);
-							const resolved = addressAsUri.scheme.startsWith(uri.scheme) ? addressAsUri : uri.with({ authority: tunnel.localAddress });
+						let tunnel = await this.tunnelService.getExistingTunnel(portMappingRequest.address, portMappingRequest.port);
+						if (!tunnel || (typeof tunnel === 'string')) {
+							tunnel = await this.tunnelService.openTunnel(addressProvider, portMappingRequest.address, portMappingRequest.port);
+						}
+						if (tunnel && (typeof tunnel !== 'string')) {
+							const constTunnel = tunnel;
+							const addressAsUri = URI.parse(constTunnel.localAddress);
+							const resolved = addressAsUri.scheme.startsWith(uri.scheme) ? addressAsUri : uri.with({ authority: constTunnel.localAddress });
 							return {
 								resolved,
-								dispose: () => tunnel.dispose(),
+								dispose: () => constTunnel.dispose(),
 							};
 						}
 					}
@@ -755,10 +909,10 @@ export class NativeWindow extends Disposable {
 
 		const disabled = this.configurationService.getValue('keyboard.touchbar.enabled') === false;
 		const touchbarIgnored = this.configurationService.getValue('keyboard.touchbar.ignored');
-		const ignoredItems = isArray(touchbarIgnored) ? touchbarIgnored : [];
+		const ignoredItems = Array.isArray(touchbarIgnored) ? touchbarIgnored : [];
 
 		// Fill actions into groups respecting order
-		this.touchBarDisposables.add(createAndFillInActionBarActions(this.touchBarMenu, undefined, actions));
+		createAndFillInActionBarActions(this.touchBarMenu, undefined, actions);
 
 		// Convert into command action multi array
 		const items: ICommandAction[][] = [];
@@ -811,9 +965,9 @@ export class NativeWindow extends Disposable {
 	private doAddFolders(): void {
 		const foldersToAdd: IWorkspaceFolderCreationData[] = [];
 
-		this.pendingFoldersToAdd.forEach(folder => {
+		for (const folder of this.pendingFoldersToAdd) {
 			foldersToAdd.push(({ uri: folder }));
-		});
+		}
 
 		this.pendingFoldersToAdd = [];
 
@@ -821,26 +975,28 @@ export class NativeWindow extends Disposable {
 	}
 
 	private async onOpenFiles(request: INativeOpenFileRequest): Promise<void> {
-		const inputs: Array<IResourceEditorInput | IUntitledTextResourceEditorInput> = [];
 		const diffMode = !!(request.filesToDiff && (request.filesToDiff.length === 2));
+		const mergeMode = !!(request.filesToMerge && (request.filesToMerge.length === 4));
 
-		if (!diffMode && request.filesToOpenOrCreate) {
-			inputs.push(...(await pathsToEditors(request.filesToOpenOrCreate, this.fileService)));
-		}
-
-		if (diffMode && request.filesToDiff) {
-			inputs.push(...(await pathsToEditors(request.filesToDiff, this.fileService)));
-		}
-
+		const inputs = coalesce(await pathsToEditors(mergeMode ? request.filesToMerge : diffMode ? request.filesToDiff : request.filesToOpenOrCreate, this.fileService, this.logService));
 		if (inputs.length) {
-			this.openResources(inputs, diffMode);
-		}
+			const openedEditorPanes = await this.openResources(inputs, diffMode, mergeMode);
 
-		if (request.filesToWait && inputs.length) {
-			// In wait mode, listen to changes to the editors and wait until the files
-			// are closed that the user wants to wait for. When this happens we delete
-			// the wait marker file to signal to the outside that editing is done.
-			this.trackClosedWaitFiles(URI.revive(request.filesToWait.waitMarkerFileUri), coalesce(request.filesToWait.paths.map(path => URI.revive(path.fileUri))));
+			if (request.filesToWait) {
+
+				// In wait mode, listen to changes to the editors and wait until the files
+				// are closed that the user wants to wait for. When this happens we delete
+				// the wait marker file to signal to the outside that editing is done.
+				// However, it is possible that opening of the editors failed, as such we
+				// check for whether editor panes got opened and otherwise delete the marker
+				// right away.
+
+				if (openedEditorPanes.length) {
+					return this.trackClosedWaitFiles(URI.revive(request.filesToWait.waitMarkerFileUri), coalesce(request.filesToWait.paths.map(path => URI.revive(path.fileUri))));
+				} else {
+					return this.fileService.del(URI.revive(request.filesToWait.waitMarkerFileUri));
+				}
+			}
 		}
 	}
 
@@ -853,11 +1009,19 @@ export class NativeWindow extends Disposable {
 		await this.fileService.del(waitMarkerFile);
 	}
 
-	private async openResources(resources: Array<IResourceEditorInput | IUntitledTextResourceEditorInput>, diffMode: boolean): Promise<unknown> {
+	private async openResources(resources: Array<IResourceEditorInput | IUntitledTextResourceEditorInput>, diffMode: boolean, mergeMode: boolean): Promise<readonly IEditorPane[]> {
 		const editors: IUntypedEditorInput[] = [];
 
-		// In diffMode we open 2 resources as diff
-		if (diffMode && resources.length === 2 && resources[0].resource && resources[1].resource) {
+		if (mergeMode && isResourceEditorInput(resources[0]) && isResourceEditorInput(resources[1]) && isResourceEditorInput(resources[2]) && isResourceEditorInput(resources[3])) {
+			const mergeEditor: IResourceMergeEditorInput = {
+				input1: { resource: resources[0].resource },
+				input2: { resource: resources[1].resource },
+				base: { resource: resources[2].resource },
+				result: { resource: resources[3].resource },
+				options: { pinned: true }
+			};
+			editors.push(mergeEditor);
+		} else if (diffMode && isResourceEditorInput(resources[0]) && isResourceEditorInput(resources[1])) {
 			const diffEditor: IResourceDiffEditorInput = {
 				original: { resource: resources[0].resource },
 				modified: { resource: resources[1].resource },
@@ -868,7 +1032,6 @@ export class NativeWindow extends Disposable {
 			editors.push(...resources);
 		}
 
-		// Open as editors
 		return this.editorService.openEditors(editors, undefined, { validateTrust: true });
 	}
 }

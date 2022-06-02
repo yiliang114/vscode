@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+import { $window } from 'vs/base/browser/window';
 import { Emitter, Event } from 'vs/base/common/event';
 import { Disposable, markAsSingleton } from 'vs/base/common/lifecycle';
 
@@ -16,7 +17,7 @@ class WindowManager {
 	public getZoomLevel(): number {
 		return this._zoomLevel;
 	}
-	public setZoomLevel(zoomLevel: number, isTrusted: boolean): void {
+	public setZoomLevel(zoomLevel: number): void {
 		if (this._zoomLevel === zoomLevel) {
 			return;
 		}
@@ -71,11 +72,9 @@ class DevicePixelRatioMonitor extends Disposable {
 	}
 
 	private _handleChange(fireEvent: boolean): void {
-		if (this._mediaQueryList) {
-			this._mediaQueryList.removeEventListener('change', this._listener);
-		}
+		this._mediaQueryList?.removeEventListener('change', this._listener);
 
-		this._mediaQueryList = matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+		this._mediaQueryList = $window.matchMedia(`(resolution: ${$window.devicePixelRatio}dppx)`);
 		this._mediaQueryList.addEventListener('change', this._listener);
 
 		if (fireEvent) {
@@ -109,7 +108,7 @@ class PixelRatioImpl extends Disposable {
 
 	private _getPixelRatio(): number {
 		const ctx: any = document.createElement('canvas').getContext('2d');
-		const dpr = window.devicePixelRatio || 1;
+		const dpr = $window.devicePixelRatio || 1;
 		const bsr = ctx.webkitBackingStorePixelRatio ||
 			ctx.mozBackingStorePixelRatio ||
 			ctx.msBackingStorePixelRatio ||
@@ -146,7 +145,7 @@ class PixelRatioFacade {
 
 export function addMatchMediaChangeListener(query: string | MediaQueryList, callback: (this: MediaQueryList, ev: MediaQueryListEvent) => any): void {
 	if (typeof query === 'string') {
-		query = window.matchMedia(query);
+		query = $window.matchMedia(query);
 	}
 	query.addEventListener('change', callback);
 }
@@ -161,8 +160,8 @@ export function addMatchMediaChangeListener(query: string | MediaQueryList, call
 export const PixelRatio = new PixelRatioFacade();
 
 /** A zoom index, e.g. 1, 2, 3 */
-export function setZoomLevel(zoomLevel: number, isTrusted: boolean): void {
-	WindowManager.INSTANCE.setZoomLevel(zoomLevel, isTrusted);
+export function setZoomLevel(zoomLevel: number): void {
+	WindowManager.INSTANCE.setZoomLevel(zoomLevel);
 }
 export function getZoomLevel(): number {
 	return WindowManager.INSTANCE.getZoomLevel();
@@ -195,13 +194,27 @@ export const isElectron = (userAgent.indexOf('Electron/') >= 0);
 export const isAndroid = (userAgent.indexOf('Android') >= 0);
 
 let standalone = false;
-if (window.matchMedia) {
-	const matchMedia = window.matchMedia('(display-mode: standalone)');
-	standalone = matchMedia.matches;
-	addMatchMediaChangeListener(matchMedia, ({ matches }) => {
+if ($window.matchMedia) {
+	const standaloneMatchMedia = $window.matchMedia('(display-mode: standalone) or (display-mode: window-controls-overlay)');
+	const fullScreenMatchMedia = $window.matchMedia('(display-mode: fullscreen)');
+	standalone = standaloneMatchMedia.matches;
+	addMatchMediaChangeListener(standaloneMatchMedia, ({ matches }) => {
+		// entering fullscreen would change standaloneMatchMedia.matches to false
+		// if standalone is true (running as PWA) and entering fullscreen, skip this change
+		if (standalone && fullScreenMatchMedia.matches) {
+			return;
+		}
+		// otherwise update standalone (browser to PWA or PWA to browser)
 		standalone = matches;
 	});
 }
 export function isStandalone(): boolean {
 	return standalone;
+}
+
+// Visible means that the feature is enabled, not necessarily being rendered
+// e.g. visible is true even in fullscreen mode where the controls are hidden
+// See docs at https://developer.mozilla.org/en-US/docs/Web/API/WindowControlsOverlay/visible
+export function isWCOEnabled(): boolean {
+	return (navigator as any)?.windowControlsOverlay?.visible;
 }

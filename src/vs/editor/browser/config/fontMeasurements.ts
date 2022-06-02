@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as browser from 'vs/base/browser/browser';
+import { mainWindow } from 'vs/base/browser/window';
 import { Emitter, Event } from 'vs/base/common/event';
 import { Disposable } from 'vs/base/common/lifecycle';
 import { CharWidthRequest, CharWidthRequestType, readCharWidths } from 'vs/editor/browser/config/charWidthReader';
@@ -20,6 +21,7 @@ export interface ISerializedFontInfo {
 	readonly fontWeight: string;
 	readonly fontSize: number;
 	readonly fontFeatureSettings: string;
+	readonly fontVariationSettings: string;
 	readonly lineHeight: number;
 	readonly letterSpacing: number;
 	readonly isMonospace: boolean;
@@ -32,7 +34,7 @@ export interface ISerializedFontInfo {
 	readonly maxDigitWidth: number;
 }
 
-class FontMeasurementsImpl extends Disposable {
+export class FontMeasurementsImpl extends Disposable {
 
 	private _cache: FontMeasurementsCache;
 	private _evictUntrustedReadingsTimeout: number;
@@ -49,7 +51,7 @@ class FontMeasurementsImpl extends Disposable {
 
 	public override dispose(): void {
 		if (this._evictUntrustedReadingsTimeout !== -1) {
-			window.clearTimeout(this._evictUntrustedReadingsTimeout);
+			clearTimeout(this._evictUntrustedReadingsTimeout);
 			this._evictUntrustedReadingsTimeout = -1;
 		}
 		super.dispose();
@@ -68,7 +70,7 @@ class FontMeasurementsImpl extends Disposable {
 
 		if (!value.isTrusted && this._evictUntrustedReadingsTimeout === -1) {
 			// Try reading again after some time
-			this._evictUntrustedReadingsTimeout = window.setTimeout(() => {
+			this._evictUntrustedReadingsTimeout = mainWindow.setTimeout(() => {
 				this._evictUntrustedReadingsTimeout = -1;
 				this._evictUntrustedReadings();
 			}, 5000);
@@ -128,6 +130,7 @@ class FontMeasurementsImpl extends Disposable {
 					fontWeight: readConfig.fontWeight,
 					fontSize: readConfig.fontSize,
 					fontFeatureSettings: readConfig.fontFeatureSettings,
+					fontVariationSettings: readConfig.fontVariationSettings,
 					lineHeight: readConfig.lineHeight,
 					letterSpacing: readConfig.letterSpacing,
 					isMonospace: readConfig.isMonospace,
@@ -149,9 +152,7 @@ class FontMeasurementsImpl extends Disposable {
 	private _createRequest(chr: string, type: CharWidthRequestType, all: CharWidthRequest[], monospace: CharWidthRequest[] | null): CharWidthRequest {
 		const result = new CharWidthRequest(chr, type);
 		all.push(result);
-		if (monospace) {
-			monospace.push(result);
-		}
+		monospace?.push(result);
 		return result;
 	}
 
@@ -221,6 +222,7 @@ class FontMeasurementsImpl extends Disposable {
 			fontWeight: bareFontInfo.fontWeight,
 			fontSize: bareFontInfo.fontSize,
 			fontFeatureSettings: bareFontInfo.fontFeatureSettings,
+			fontVariationSettings: bareFontInfo.fontVariationSettings,
 			lineHeight: bareFontInfo.lineHeight,
 			letterSpacing: bareFontInfo.letterSpacing,
 			isMonospace: isMonospace,

@@ -5,6 +5,7 @@
 
 import { CharCode } from 'vs/base/common/charCode';
 import { LRUCache } from 'vs/base/common/map';
+import { getKoreanAltChars } from 'vs/base/common/naturalLanguage/korean';
 import * as strings from 'vs/base/common/strings';
 
 export interface IFilter {
@@ -132,6 +133,33 @@ function isWordSeparator(code: number): boolean {
 
 function charactersMatch(codeA: number, codeB: number): boolean {
 	return (codeA === codeB) || (isWordSeparator(codeA) && isWordSeparator(codeB));
+}
+
+const alternateCharsCache: Map<number, ArrayLike<number> | undefined> = new Map();
+/**
+ * Gets alternative codes to the character code passed in. This comes in the
+ * form of an array of character codes, all of which must match _in order_ to
+ * successfully match.
+ *
+ * @param code The character code to check.
+ */
+function getAlternateCodes(code: number): ArrayLike<number> | undefined {
+	if (alternateCharsCache.has(code)) {
+		return alternateCharsCache.get(code);
+	}
+
+	// NOTE: This function is written in such a way that it can be extended in
+	// the future, but right now the return type takes into account it's only
+	// supported by a single "alt codes provider".
+	// `ArrayLike<ArrayLike<number>>` is a more appropriate type if changed.
+	let result: ArrayLike<number> | undefined;
+	const codes = getKoreanAltChars(code);
+	if (codes) {
+		result = codes;
+	}
+
+	alternateCharsCache.set(code, result);
+	return result;
 }
 
 function isAlphanumeric(code: number): boolean {
@@ -288,36 +316,72 @@ export function matchesWords(word: string, target: string, contiguous: boolean =
 	}
 
 	let result: IMatch[] | null = null;
-	let i = 0;
+	let targetIndex = 0;
 
 	word = word.toLowerCase();
 	target = target.toLowerCase();
-	while (i < target.length && (result = _matchesWords(word, target, 0, i, contiguous)) === null) {
-		i = nextWord(target, i + 1);
+	while (targetIndex < target.length) {
+		result = _matchesWords(word, target, 0, targetIndex, contiguous);
+		if (result !== null) {
+			break;
+		}
+		targetIndex = nextWord(target, targetIndex + 1);
 	}
 
 	return result;
 }
 
-function _matchesWords(word: string, target: string, i: number, j: number, contiguous: boolean): IMatch[] | null {
-	if (i === word.length) {
+function _matchesWords(word: string, target: string, wordIndex: number, targetIndex: number, contiguous: boolean): IMatch[] | null {
+	let targetIndexOffset = 0;
+
+	if (wordIndex === word.length) {
 		return [];
-	} else if (j === target.length) {
+	} else if (targetIndex === target.length) {
 		return null;
-	} else if (!charactersMatch(word.charCodeAt(i), target.charCodeAt(j))) {
-		return null;
-	} else {
-		let result: IMatch[] | null = null;
-		let nextWordIndex = j + 1;
-		result = _matchesWords(word, target, i + 1, j + 1, contiguous);
-		if (!contiguous) {
-			while (!result && (nextWordIndex = nextWord(target, nextWordIndex)) < target.length) {
-				result = _matchesWords(word, target, i + 1, nextWordIndex, contiguous);
-				nextWordIndex++;
+	} else if (!charactersMatch(word.charCodeAt(wordIndex), target.charCodeAt(targetIndex))) {
+		// Verify alternate characters before exiting
+		const altChars = getAlternateCodes(word.charCodeAt(wordIndex));
+		if (!altChars) {
+			return null;
+		}
+		for (let k = 0; k < altChars.length; k++) {
+			if (!charactersMatch(altChars[k], target.charCodeAt(targetIndex + k))) {
+				return null;
 			}
 		}
-		return result === null ? null : join({ start: j, end: j + 1 }, result);
+		targetIndexOffset += altChars.length - 1;
 	}
+
+	let result: IMatch[] | null = null;
+	let nextWordIndex = targetIndex + targetIndexOffset + 1;
+	result = _matchesWords(word, target, wordIndex + 1, nextWordIndex, contiguous);
+	if (!contiguous) {
+		while (!result && (nextWordIndex = nextWord(target, nextWordIndex)) < target.length) {
+			result = _matchesWords(word, target, wordIndex + 1, nextWordIndex, contiguous);
+			nextWordIndex++;
+		}
+	}
+
+	if (!result) {
+		return null;
+	}
+
+	// If the characters don't exactly match, then they must be word separators (see charactersMatch(...)).
+	// We don't want to include this in the matches but we don't want to throw the target out all together so we return `result`.
+	if (word.charCodeAt(wordIndex) !== target.charCodeAt(targetIndex)) {
+		// Verify alternate characters before exiting
+		const altChars = getAlternateCodes(word.charCodeAt(wordIndex));
+		if (!altChars) {
+			return result;
+		}
+		for (let k = 0; k < altChars.length; k++) {
+			if (altChars[k] !== target.charCodeAt(targetIndex + k)) {
+				return result;
+			}
+		}
+	}
+
+	return join({ start: targetIndex, end: targetIndex + targetIndexOffset + 1 }, result);
 }
 
 function nextWord(word: string, start: number): number {
@@ -370,7 +434,7 @@ export function matchesFuzzy2(pattern: string, word: string): IMatch[] | null {
 export function anyScore(pattern: string, lowPattern: string, patternPos: number, word: string, lowWord: string, wordPos: number): FuzzyScore {
 	const max = Math.min(13, pattern.length);
 	for (; patternPos < max; patternPos++) {
-		const result = fuzzyScore(pattern, lowPattern, patternPos, word, lowWord, wordPos, { firstMatchCanBeWeak: false, boostFullMatch: true });
+		const result = fuzzyScore(pattern, lowPattern, patternPos, word, lowWord, wordPos, { firstMatchCanBeWeak: true, boostFullMatch: true });
 		if (result) {
 			return result;
 		}
@@ -472,8 +536,13 @@ function isSeparatorAtPos(value: string, index: number): boolean {
 		case CharCode.Colon:
 		case CharCode.DollarSign:
 		case CharCode.LessThan:
+		case CharCode.GreaterThan:
 		case CharCode.OpenParen:
+		case CharCode.CloseParen:
 		case CharCode.OpenSquareBracket:
+		case CharCode.CloseSquareBracket:
+		case CharCode.OpenCurlyBrace:
+		case CharCode.CloseCurlyBrace:
 			return true;
 		case undefined:
 			return false;

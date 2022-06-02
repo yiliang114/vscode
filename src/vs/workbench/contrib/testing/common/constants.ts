@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+import { stripIcons } from 'vs/base/common/iconLabels';
 import { localize } from 'vs/nls';
 import { TestResultState, TestRunProfileBitset } from 'vs/workbench/contrib/testing/common/testTypes';
 
@@ -12,6 +13,10 @@ export const enum Testing {
 	ExplorerViewId = 'workbench.view.testing',
 	OutputPeekContributionId = 'editor.contrib.testingOutputPeek',
 	DecorationsContributionId = 'editor.contrib.testingDecorations',
+	CoverageViewId = 'workbench.view.testCoverage',
+
+	ResultsPanelId = 'workbench.panel.testResults',
+	ResultsViewId = 'workbench.panel.testResults.view',
 }
 
 export const enum TestExplorerViewMode {
@@ -25,13 +30,7 @@ export const enum TestExplorerViewSorting {
 	ByDuration = 'duration',
 }
 
-export const enum TestExplorerStateFilter {
-	OnlyFailed = 'failed',
-	OnlyExecuted = 'excuted',
-	All = 'all',
-}
-
-export const testStateNames: { [K in TestResultState]: string } = {
+const testStateNames: { [K in TestResultState]: string } = {
 	[TestResultState.Errored]: localize('testState.errored', 'Errored'),
 	[TestResultState.Failed]: localize('testState.failed', 'Failed'),
 	[TestResultState.Passed]: localize('testState.passed', 'Passed'),
@@ -44,9 +43,9 @@ export const testStateNames: { [K in TestResultState]: string } = {
 export const labelForTestInState = (label: string, state: TestResultState) => localize({
 	key: 'testing.treeElementLabel',
 	comment: ['label then the unit tests state, for example "Addition Tests (Running)"'],
-}, '{0} ({1})', label, testStateNames[state]);
+}, '{0} ({1})', stripIcons(label), testStateNames[state]);
 
-export const testConfigurationGroupNames: { [K in TestRunProfileBitset]: string } = {
+export const testConfigurationGroupNames: Partial<Record<TestRunProfileBitset, string | undefined>> = {
 	[TestRunProfileBitset.Debug]: localize('testGroup.debug', 'Debug'),
 	[TestRunProfileBitset.Run]: localize('testGroup.run', 'Run'),
 	[TestRunProfileBitset.Coverage]: localize('testGroup.coverage', 'Coverage'),
@@ -58,6 +57,8 @@ export const enum TestCommandId {
 	ClearTestResultsAction = 'testing.clearTestResults',
 	CollapseAllAction = 'testing.collapseAll',
 	ConfigureTestProfilesAction = 'testing.configureProfile',
+	ContinousRunUsingForTest = 'testing.continuousRunUsingForTest',
+	CoverageClose = 'testing.coverage.close',
 	DebugAction = 'testing.debug',
 	DebugAllAction = 'testing.debugAll',
 	DebugAtCursor = 'testing.debugAtCursor',
@@ -66,6 +67,8 @@ export const enum TestCommandId {
 	DebugLastRun = 'testing.debugLastRun',
 	DebugSelectedAction = 'testing.debugSelected',
 	FilterAction = 'workbench.actions.treeView.testExplorer.filter',
+	GetExplorerSelection = '_testing.getExplorerSelection',
+	GetSelectedProfiles = 'testing.getSelectedProfiles',
 	GoToTest = 'testing.editFocusedTest',
 	HideTestAction = 'testing.hideTest',
 	OpenOutputPeek = 'testing.openOutputPeek',
@@ -81,12 +84,15 @@ export const enum TestCommandId {
 	SearchForTestExtension = 'testing.searchForTestExtension',
 	SelectDefaultTestProfiles = 'testing.selectDefaultTestProfiles',
 	ShowMostRecentOutputAction = 'testing.showMostRecentOutput',
+	StartContinousRun = 'testing.startContinuousRun',
+	StopContinousRun = 'testing.stopContinuousRun',
 	TestingSortByDurationAction = 'testing.sortByDuration',
 	TestingSortByLocationAction = 'testing.sortByLocation',
 	TestingSortByStatusAction = 'testing.sortByStatus',
 	TestingViewAsListAction = 'testing.viewAsList',
 	TestingViewAsTreeAction = 'testing.viewAsTree',
-	ToggleAutoRun = 'testing.toggleautoRun',
+	ToggleContinousRunForTest = 'testing.toggleContinuousRunForTest',
 	ToggleInlineTestOutput = 'testing.toggleInlineTestOutput',
+	UnhideAllTestsAction = 'testing.unhideAllTests',
 	UnhideTestAction = 'testing.unhideTest',
 }
