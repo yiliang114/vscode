@@ -17,16 +17,6 @@
 	<!-- Disable pinch zooming -->
 	<meta name="viewport"
 		content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
-
-	<!-- Workbench Configuration -->
-	<meta id="vscode-workbench-web-configuration" data-settings="{{WORKBENCH_WEB_CONFIGURATION}}">
-
-	<!-- Workbench Auth Session -->
-	<meta id="vscode-workbench-auth-session" data-settings="{{WORKBENCH_AUTH_SESSION}}">
-
-	<!-- Workbench Icon/Manifest/CSS -->
-	<link rel="icon" href="./resources/server/favicon.ico" type="image/x-icon" />
-	<link rel="manifest" href="./resources/server/manifest.json" crossorigin="use-credentials" />
 	<link data-name="vs/workbench/workbench.web.main" rel="stylesheet" href="./out/vs/workbench/workbench.web.main.css">
 
 </head>
@@ -69,9 +59,6 @@
 		paths: self.webPackagePaths,
 		...nlsConfig
 	});
-</script>
-<script>
-	performance.mark('code/willLoadWorkbenchMain');
 </script>
 <script src="./out/vs/workbench/workbench.web.main.nls.js"></script>
 <script src="./out/vs/workbench/workbench.web.main.js"></script>
