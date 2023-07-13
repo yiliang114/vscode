@@ -62,7 +62,8 @@
     "core-ci-pr": "node --max_old_space_size=4095 ./node_modules/gulp/bin/gulp.js core-ci-pr",
     "extensions-ci": "node --max_old_space_size=4095 ./node_modules/gulp/bin/gulp.js extensions-ci",
     "extensions-ci-pr": "node --max_old_space_size=4095 ./node_modules/gulp/bin/gulp.js extensions-ci-pr",
-    "perf": "node scripts/code-perf.js"
+    "perf": "node scripts/code-perf.js",
+    "vscode-web-build": "yarn gulp vscode-web-min && cp ./tools/index.html ../vscode-web/"
   },
   "dependencies": {
     "@microsoft/1ds-core-js": "^3.2.2",
