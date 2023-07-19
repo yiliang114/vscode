@@ -394,9 +394,12 @@ class WorkspaceProvider implements IWorkspaceProvider {
 
 	// Find config by checking for DOM
 	const configElement = document.getElementById('vscode-workbench-web-configuration');
-	const configElementAttribute = configElement ? configElement.getAttribute('data-settings') : undefined;
+	let configElementAttribute = configElement ? configElement.getAttribute('data-settings') : undefined;
 	if (!configElement || !configElementAttribute) {
-		throw new Error('Missing web configuration element');
+		// throw new Error('Missing web configuration element');
+		configElementAttribute = JSON.stringify({
+			productConfiguration: { ...product }
+		});
 	}
 	const config: IWorkbenchConstructionOptions & { folderUri?: UriComponents; workspaceUri?: UriComponents; callbackRoute: string } = JSON.parse(configElementAttribute);
 
