@@ -4,15 +4,19 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as assert from 'assert';
-import { isLinux, isWindows } from 'vs/base/common/platform';
+import { isWindows } from 'vs/base/common/platform';
 import { flakySuite } from 'vs/base/test/common/testUtils';
-import { Encryption } from 'vs/platform/encryption/node/encryptionMainService';
 
 function testErrorMessage(module: string): string {
 	return `Unable to load "${module}" dependency. It was probably not compiled for the right operating system architecture or had missing build tools.`;
 }
 
 flakySuite('Native Modules (all platforms)', () => {
+
+	test('kerberos', async () => {
+		const kerberos = await import('kerberos');
+		assert.ok(typeof kerberos.initializeClient === 'function', testErrorMessage('kerberos'));
+	});
 
 	test('native-is-elevated', async () => {
 		const isElevated = await import('native-is-elevated');
@@ -40,10 +44,10 @@ flakySuite('Native Modules (all platforms)', () => {
 		assert.ok(typeof nodePty.spawn === 'function', testErrorMessage('node-pty'));
 	});
 
-	(process.type === 'renderer' ? test.skip /* TODO@electron module is not context aware yet and thus cannot load in Electron renderer used by tests */ : test)('spdlog', async () => {
-		const spdlog = await import('spdlog');
-		assert.ok(typeof spdlog.createRotatingLogger === 'function', testErrorMessage('spdlog'));
-		assert.ok(typeof spdlog.version === 'number', testErrorMessage('spdlog'));
+	(process.type === 'renderer' ? test.skip /* TODO@electron module is not context aware yet and thus cannot load in Electron renderer used by tests */ : test)('@vscode/spdlog', async () => {
+		const spdlog = await import('@vscode/spdlog');
+		assert.ok(typeof spdlog.createRotatingLogger === 'function', testErrorMessage('@vscode/spdlog'));
+		assert.ok(typeof spdlog.version === 'number', testErrorMessage('@vscode/spdlog'));
 	});
 
 	test('@parcel/watcher', async () => {
@@ -56,21 +60,6 @@ flakySuite('Native Modules (all platforms)', () => {
 		assert.ok(typeof sqlite3.Database === 'function', testErrorMessage('@vscode/sqlite3'));
 	});
 
-	test('vscode-encrypt', async () => {
-		try {
-			const vscodeEncrypt: Encryption = globalThis._VSCODE_NODE_MODULES['vscode-encrypt'];
-			const encrypted = await vscodeEncrypt.encrypt('salt', 'value');
-			const decrypted = await vscodeEncrypt.decrypt('salt', encrypted);
-
-			assert.ok(typeof encrypted === 'string', testErrorMessage('vscode-encrypt'));
-			assert.ok(typeof decrypted === 'string', testErrorMessage('vscode-encrypt'));
-		} catch (error) {
-			if (error.code !== 'MODULE_NOT_FOUND') {
-				throw error;
-			}
-		}
-	});
-
 	test('vsda', async () => {
 		try {
 			const vsda: any = globalThis._VSCODE_NODE_MODULES['vsda'];
@@ -81,28 +70,6 @@ flakySuite('Native Modules (all platforms)', () => {
 			if (error.code !== 'MODULE_NOT_FOUND') {
 				throw error;
 			}
-		}
-	});
-});
-
-(isLinux ? suite.skip : suite)('Native Modules (Windows, macOS)', () => {
-
-	test('keytar', async () => {
-		const keytar = await import('keytar');
-		const name = `VSCode Test ${Math.floor(Math.random() * 1e9)}`;
-		try {
-			await keytar.setPassword(name, 'foo', 'bar');
-			assert.strictEqual(await keytar.findPassword(name), 'bar');
-			assert.strictEqual((await keytar.findCredentials(name)).length, 1);
-			assert.strictEqual(await keytar.getPassword(name, 'foo'), 'bar');
-			await keytar.deletePassword(name, 'foo');
-			assert.strictEqual(await keytar.getPassword(name, 'foo'), null);
-		} catch (err) {
-			try {
-				await keytar.deletePassword(name, 'foo'); // try to clean up
-			} catch { }
-
-			throw err;
 		}
 	});
 });
@@ -123,16 +90,16 @@ flakySuite('Native Modules (all platforms)', () => {
 		assert.ok(typeof result === 'boolean', testErrorMessage('windows-foreground-love'));
 	});
 
-	test('windows-process-tree', async () => {
-		const processTree = await import('windows-process-tree');
-		assert.ok(typeof processTree.getProcessTree === 'function', testErrorMessage('windows-process-tree'));
+	test('@vscode/windows-process-tree', async () => {
+		const processTree = await import('@vscode/windows-process-tree');
+		assert.ok(typeof processTree.getProcessTree === 'function', testErrorMessage('@vscode/windows-process-tree'));
 
 		return new Promise((resolve, reject) => {
 			processTree.getProcessTree(process.pid, tree => {
 				if (tree) {
 					resolve();
 				} else {
-					reject(new Error(testErrorMessage('windows-process-tree')));
+					reject(new Error(testErrorMessage('@vscode/windows-process-tree')));
 				}
 			});
 		});

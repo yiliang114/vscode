@@ -50,7 +50,7 @@ import { ThemeIcon } from 'vs/base/common/themables';
 import { onUnexpectedError } from 'vs/base/common/errors';
 import { TextCompareEditorActiveContext } from 'vs/workbench/common/contextkeys';
 import { IProgressService, ProgressLocation } from 'vs/platform/progress/common/progress';
-import { IChange } from 'vs/editor/common/diff/smartLinesDiffComputer';
+import { IChange } from 'vs/editor/common/diff/legacyLinesDiffComputer';
 import { Color } from 'vs/base/common/color';
 import { ResourceMap } from 'vs/base/common/map';
 import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
@@ -408,11 +408,11 @@ class DirtyDiffWidget extends PeekViewWidget {
 			renderSideBySide: false,
 			readOnly: false,
 			renderIndicators: false,
-			diffAlgorithm: 'smart',
+			diffAlgorithm: 'advanced',
 			stickyScroll: { enabled: false }
 		};
 
-		this.diffEditor = this.instantiationService.createInstance(EmbeddedDiffEditorWidget, container, options, this.editor);
+		this.diffEditor = this.instantiationService.createInstance(EmbeddedDiffEditorWidget, container, options, {}, this.editor);
 		this._disposables.add(this.diffEditor);
 	}
 
@@ -467,7 +467,7 @@ class DirtyDiffWidget extends PeekViewWidget {
 		this.editor.revealLineInCenterIfOutsideViewport(range.endLineNumber, ScrollType.Smooth);
 	}
 
-	hasFocus(): boolean {
+	override hasFocus(): boolean {
 		return this.diffEditor.hasTextFocus();
 	}
 
@@ -601,8 +601,7 @@ export class GotoPreviousChangeAction extends EditorAction {
 		const index = model.findPreviousClosestChange(lineNumber, false);
 		const change = model.changes[index];
 		await playAudioCueForChange(change.change, audioCueService);
-		// The audio cue can take up to a second to load. Give it a chance to play before we read the line content
-		await setTimeout(() => setPositionAndSelection(change.change, outerEditor, accessibilityService, codeEditorService), 500);
+		setPositionAndSelection(change.change, outerEditor, accessibilityService, codeEditorService);
 	}
 }
 registerEditorAction(GotoPreviousChangeAction);
@@ -645,8 +644,7 @@ export class GotoNextChangeAction extends EditorAction {
 		const index = model.findNextClosestChange(lineNumber, false);
 		const change = model.changes[index].change;
 		await playAudioCueForChange(change, audioCueService);
-		// The audio cue can take up to a second to load. Give it a chance to play before we read the line content
-		await setTimeout(() => setPositionAndSelection(change, outerEditor, accessibilityService, codeEditorService), 500);
+		setPositionAndSelection(change, outerEditor, accessibilityService, codeEditorService);
 	}
 }
 
@@ -664,13 +662,13 @@ async function playAudioCueForChange(change: IChange, audioCueService: IAudioCue
 	const changeType = getChangeType(change);
 	switch (changeType) {
 		case ChangeType.Add:
-			audioCueService.playAudioCue(AudioCue.diffLineInserted, true);
+			audioCueService.playAudioCue(AudioCue.diffLineInserted, { allowManyInParallel: true, source: 'dirtyDiffDecoration' });
 			break;
 		case ChangeType.Delete:
-			audioCueService.playAudioCue(AudioCue.diffLineDeleted, true);
+			audioCueService.playAudioCue(AudioCue.diffLineDeleted, { allowManyInParallel: true, source: 'dirtyDiffDecoration' });
 			break;
 		case ChangeType.Modify:
-			audioCueService.playAudioCue(AudioCue.diffLineModified, true);
+			audioCueService.playAudioCue(AudioCue.diffLineModified, { allowManyInParallel: true, source: 'dirtyDiffDecoration' });
 			break;
 	}
 }
@@ -716,7 +714,7 @@ export class DirtyDiffController extends Disposable implements DirtyDiffContribu
 	private session: IDisposable = Disposable.None;
 	private mouseDownInfo: { lineNumber: number } | null = null;
 	private enabled = false;
-	private gutterActionDisposables = new DisposableStore();
+	private readonly gutterActionDisposables = new DisposableStore();
 	private stylesheet: HTMLStyleElement;
 
 	constructor(
@@ -743,8 +741,7 @@ export class DirtyDiffController extends Disposable implements DirtyDiffContribu
 	private onDidChangeGutterAction(): void {
 		const gutterAction = this.configurationService.getValue<'diff' | 'none'>('scm.diffDecorationsGutterAction');
 
-		this.gutterActionDisposables.dispose();
-		this.gutterActionDisposables = new DisposableStore();
+		this.gutterActionDisposables.clear();
 
 		if (gutterAction === 'diff') {
 			this.gutterActionDisposables.add(this.editor.onMouseDown(e => this.onEditorMouseDown(e)));
@@ -788,7 +785,7 @@ export class DirtyDiffController extends Disposable implements DirtyDiffContribu
 		}
 
 		let index: number;
-		if (this.editor.hasModel() && (typeof lineNumber === 'number')) {
+		if (this.editor.hasModel() && (typeof lineNumber === 'number' || !this.widget.provider)) {
 			index = this.model.findNextClosestChange(typeof lineNumber === 'number' ? lineNumber : this.editor.getPosition().lineNumber, true, this.widget.provider);
 		} else {
 			const providerChanges: number[] = this.model.mapChanges.get(this.widget.provider) ?? this.model.mapChanges.values().next().value;
@@ -864,10 +861,12 @@ export class DirtyDiffController extends Disposable implements DirtyDiffContribu
 
 		const disposables = new DisposableStore();
 		disposables.add(Event.once(this.widget.onDidClose)(this.close, this));
-		Event.chain(model.onDidChange)
-			.filter(e => e.diff.length > 0)
-			.map(e => e.diff)
-			.event(this.onDidModelChange, this, disposables);
+		const onDidModelChange = Event.chain(model.onDidChange, $ =>
+			$.filter(e => e.diff.length > 0)
+				.map(e => e.diff)
+		);
+
+		onDidModelChange(this.onDidModelChange, this, disposables);
 
 		disposables.add(this.widget);
 		disposables.add(toDisposable(() => {
@@ -920,11 +919,11 @@ export class DirtyDiffController extends Disposable implements DirtyDiffContribu
 		}
 
 		const data = e.target.detail;
-		const offsetLeftInGutter = (e.target.element as HTMLElement).offsetLeft;
+		const offsetLeftInGutter = e.target.element.offsetLeft;
 		const gutterOffsetX = data.offsetX - offsetLeftInGutter;
 
 		// TODO@joao TODO@alex TODO@martin this is such that we don't collide with folding
-		if (gutterOffsetX < -3 || gutterOffsetX > 6) { // dirty diff decoration on hover is 9px wide
+		if (gutterOffsetX < -3 || gutterOffsetX > 3) { // dirty diff decoration on hover is 6px wide
 			return;
 		}
 
@@ -1468,7 +1467,7 @@ export class DirtyDiffModel extends Disposable {
 			const possibleChangesLength = possibleChanges.length;
 
 			if (inclusive) {
-				if ((getModifiedEndLineNumber(change.change) >= lineNumber) && (change.change.modifiedStartLineNumber <= lineNumber)) {
+				if (getModifiedEndLineNumber(change.change) >= lineNumber) {
 					if (preferredProvider && change.label !== preferredProvider) {
 						possibleChanges.push(i);
 					} else {

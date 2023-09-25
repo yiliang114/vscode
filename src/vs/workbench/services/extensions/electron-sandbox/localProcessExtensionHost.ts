@@ -12,18 +12,15 @@ import * as objects from 'vs/base/common/objects';
 import * as platform from 'vs/base/common/platform';
 import { removeDangerousEnvVariables } from 'vs/base/common/processes';
 import { StopWatch } from 'vs/base/common/stopwatch';
-import { withNullAsUndefined } from 'vs/base/common/types';
 import { URI } from 'vs/base/common/uri';
 import { generateUuid } from 'vs/base/common/uuid';
 import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
 import { BufferedEmitter } from 'vs/base/parts/ipc/common/ipc.net';
 import { acquirePort } from 'vs/base/parts/ipc/electron-sandbox/ipc.mp';
-import { process } from 'vs/base/parts/sandbox/electron-sandbox/globals';
 import * as nls from 'vs/nls';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IExtensionHostDebugService } from 'vs/platform/debug/common/extensionHostDebug';
 import { IExtensionHostProcessOptions, IExtensionHostStarter } from 'vs/platform/extensions/common/extensionHostStarter';
-import { ExtensionIdentifier, IExtensionDescription } from 'vs/platform/extensions/common/extensions';
 import { ILabelService } from 'vs/platform/label/common/label';
 import { ILogService, ILoggerService } from 'vs/platform/log/common/log';
 import { INativeHostService } from 'vs/platform/native/common/native';
@@ -44,8 +41,7 @@ import { ILifecycleService, WillShutdownEvent } from 'vs/workbench/services/life
 import { parseExtensionDevOptions } from '../common/extensionDevOptions';
 
 export interface ILocalProcessExtensionHostInitData {
-	readonly allExtensions: IExtensionDescription[];
-	readonly myExtensions: ExtensionIdentifier[];
+	readonly extensions: ExtensionHostExtensions;
 }
 
 export interface ILocalProcessExtensionHostDataProvider {
@@ -95,7 +91,7 @@ export class ExtensionHostProcess {
 export class NativeLocalProcessExtensionHost implements IExtensionHost {
 
 	public readonly remoteAuthority = null;
-	public readonly extensions = new ExtensionHostExtensions();
+	public extensions: ExtensionHostExtensions | null = null;
 
 	private readonly _onExit: Emitter<[number, string]> = new Emitter<[number, string]>();
 	public readonly onExit: Event<[number, string]> = this._onExit.event;
@@ -250,9 +246,8 @@ export class NativeLocalProcessExtensionHost implements IExtensionHost {
 			opts.execArgv.unshift('--prof');
 		}
 
-		if (this._environmentService.args['max-memory']) {
-			opts.execArgv.unshift(`--max-old-space-size=${this._environmentService.args['max-memory']}`);
-		}
+		// Refs https://github.com/microsoft/vscode/issues/189805
+		opts.execArgv.unshift('--dns-result-order=ipv4first');
 
 		// Catch all output coming from the extension host process
 		type Output = { data: string; format: string[] };
@@ -419,12 +414,13 @@ export class NativeLocalProcessExtensionHost implements IExtensionHost {
 
 	private async _createExtHostInitData(): Promise<IExtensionHostInitData> {
 		const initData = await this._initDataProvider.getInitData();
+		this.extensions = initData.extensions;
 		const workspace = this._contextService.getWorkspace();
-		const deltaExtensions = this.extensions.set(initData.allExtensions, initData.myExtensions);
 		return {
 			commit: this._productService.commit,
 			version: this._productService.version,
-			parentPid: process.sandboxed ? 0 : process.pid,
+			quality: this._productService.quality,
+			parentPid: 0,
 			environment: {
 				isExtensionDevelopmentDebug: this._isExtensionDevDebug,
 				appRoot: this._environmentService.appRoot ? URI.file(this._environmentService.appRoot) : undefined,
@@ -441,7 +437,7 @@ export class NativeLocalProcessExtensionHost implements IExtensionHost {
 				extensionLogLevel: this._environmentService.extensionLogLevel
 			},
 			workspace: this._contextService.getWorkbenchState() === WorkbenchState.EMPTY ? undefined : {
-				configuration: withNullAsUndefined(workspace.configuration),
+				configuration: workspace.configuration ?? undefined,
 				id: workspace.id,
 				name: this._labelService.getWorkspaceLabel(workspace),
 				isUntitled: workspace.configuration ? isUntitledWorkspace(workspace.configuration, this._environmentService) : false,
@@ -456,9 +452,7 @@ export class NativeLocalProcessExtensionHost implements IExtensionHost {
 				includeStack: !this._isExtensionDevTestFromCli && (this._isExtensionDevHost || !this._environmentService.isBuilt || this._productService.quality !== 'stable' || this._environmentService.verbose),
 				logNative: !this._isExtensionDevTestFromCli && this._isExtensionDevHost
 			},
-			allExtensions: deltaExtensions.toAdd,
-			activationEvents: deltaExtensions.addActivationEvents,
-			myExtensions: deltaExtensions.myToAdd,
+			extensions: this.extensions.toSnapshot(),
 			telemetryInfo: {
 				sessionId: this._telemetryService.sessionId,
 				machineId: this._telemetryService.machineId,
@@ -534,7 +528,7 @@ export class NativeLocalProcessExtensionHost implements IExtensionHost {
 	}
 
 	public getInspectPort(): number | undefined {
-		return withNullAsUndefined(this._inspectPort);
+		return this._inspectPort ?? undefined;
 	}
 
 	private _onWillShutdown(event: WillShutdownEvent): void {
