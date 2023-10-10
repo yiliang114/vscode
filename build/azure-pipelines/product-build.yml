@@ -24,6 +24,10 @@ parameters:
     displayName: "Custom NPM Registry"
     type: string
     default: 'https://pkgs.dev.azure.com/monacotools/Monaco/_packaging/vscode/npm/registry/'
+  - name: CARGO_REGISTRY
+    displayName: "Custom Cargo Registry"
+    type: string
+    default: 'sparse+https://pkgs.dev.azure.com/monacotools/Monaco/_packaging/vscode/Cargo/index/'
   - name: VSCODE_BUILD_WIN32
     displayName: "🎯 Windows x64"
     type: boolean
@@ -98,6 +102,8 @@ variables:
     value: ${{ ne(variables['Build.Repository.Uri'], 'https://github.com/microsoft/vscode.git') }}
   - name: NPM_REGISTRY
     value: ${{ parameters.NPM_REGISTRY }}
+  - name: CARGO_REGISTRY
+    value: ${{ parameters.CARGO_REGISTRY }}
   - name: VSCODE_QUALITY
     value: ${{ parameters.VSCODE_QUALITY }}
   - name: VSCODE_BUILD_STAGE_WINDOWS
@@ -143,18 +149,6 @@ name: "$(Date:yyyyMMdd).$(Rev:r) (${{ parameters.VSCODE_QUALITY }})"
 
 resources:
   containers:
-    - container: vscode-bionic-x64
-      image: vscodehub.azurecr.io/vscode-linux-build-agent:bionic-x64
-      endpoint: VSCodeHub
-      options: --user 0:0 --cap-add SYS_ADMIN
-    - container: vscode-arm64
-      image: vscodehub.azurecr.io/vscode-linux-build-agent:bionic-arm64
-      endpoint: VSCodeHub
-      options: --user 0:0 --cap-add SYS_ADMIN
-    - container: vscode-armhf
-      image: vscodehub.azurecr.io/vscode-linux-build-agent:bionic-armhf
-      endpoint: VSCodeHub
-      options: --user 0:0 --cap-add SYS_ADMIN
     - container: snapcraft
       image: vscodehub.azurecr.io/vscode-linux-build-agent:snapcraft-x64
       endpoint: VSCodeHub
@@ -382,7 +376,6 @@ stages:
         - ${{ if eq(variables['VSCODE_CIBUILD'], true) }}:
           - job: Linuxx64UnitTest
             displayName: Unit Tests
-            container: vscode-bionic-x64
             variables:
               VSCODE_ARCH: x64
               NPM_ARCH: x64
@@ -398,7 +391,6 @@ stages:
                   VSCODE_RUN_SMOKE_TESTS: false
           - job: Linuxx64IntegrationTest
             displayName: Integration Tests
-            container: vscode-bionic-x64
             variables:
               VSCODE_ARCH: x64
               NPM_ARCH: x64
@@ -414,7 +406,6 @@ stages:
                   VSCODE_RUN_SMOKE_TESTS: false
           - job: Linuxx64SmokeTest
             displayName: Smoke Tests
-            container: vscode-bionic-x64
             variables:
               VSCODE_ARCH: x64
               NPM_ARCH: x64
@@ -431,7 +422,6 @@ stages:
 
         - ${{ if and(eq(variables['VSCODE_CIBUILD'], false), eq(parameters.VSCODE_BUILD_LINUX, true)) }}:
           - job: Linuxx64
-            container: vscode-bionic-x64
             variables:
               VSCODE_ARCH: x64
               NPM_ARCH: x64
@@ -458,7 +448,6 @@ stages:
 
         - ${{ if and(eq(variables['VSCODE_CIBUILD'], false), eq(parameters.VSCODE_BUILD_LINUX_ARMHF, true)) }}:
           - job: LinuxArmhf
-            container: vscode-armhf
             variables:
               VSCODE_ARCH: armhf
               NPM_ARCH: arm
@@ -474,7 +463,6 @@ stages:
 
         - ${{ if and(eq(variables['VSCODE_CIBUILD'], false), eq(parameters.VSCODE_BUILD_LINUX_ARM64, true)) }}:
           - job: LinuxArm64
-            container: vscode-arm64
             variables:
               VSCODE_ARCH: arm64
               NPM_ARCH: arm64
@@ -499,6 +487,7 @@ stages:
           - job: LinuxAlpine
             variables:
               VSCODE_ARCH: x64
+              NPM_ARCH: x64
             steps:
               - template: alpine/product-build-alpine.yml
 
@@ -507,6 +496,7 @@ stages:
             timeoutInMinutes: 120
             variables:
               VSCODE_ARCH: arm64
+              NPM_ARCH: arm64
             steps:
               - template: alpine/product-build-alpine.yml
 

@@ -7,10 +7,11 @@ import { Registry } from 'vs/platform/registry/common/platform';
 import { localize } from 'vs/nls';
 import { IConfigurationRegistry, Extensions as ConfigurationExtensions, ConfigurationScope } from 'vs/platform/configuration/common/configurationRegistry';
 import { isMacintosh, isWindows, isLinux, isWeb, isNative } from 'vs/base/common/platform';
-import { ConfigurationMigrationWorkbenchContribution, DynamicWorkbenchConfigurationWorkbenchContribution, workbenchConfigurationNodeBase } from 'vs/workbench/common/configuration';
+import { ConfigurationMigrationWorkbenchContribution, DynamicWorkbenchConfigurationWorkbenchContribution, IConfigurationMigrationRegistry, workbenchConfigurationNodeBase, Extensions, ConfigurationKeyValuePairs } from 'vs/workbench/common/configuration';
 import { isStandalone } from 'vs/base/browser/browser';
 import { IWorkbenchContributionsRegistry, Extensions as WorkbenchExtensions } from 'vs/workbench/common/contributions';
 import { LifecyclePhase } from 'vs/workbench/services/lifecycle/common/lifecycle';
+import { ActivityBarPosition, LayoutSettings } from 'vs/workbench/services/layout/browser/layoutService';
 
 const registry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Configuration);
 
@@ -95,11 +96,11 @@ const registry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Con
 					key: 'untitledLabelFormat'
 				}, "Controls the format of the label for an untitled editor."),
 			},
-			'workbench.editor.untitled.hint': {
+			'workbench.editor.empty.hint': {
 				'type': 'string',
 				'enum': ['text', 'hidden'],
 				'default': 'text',
-				'markdownDescription': localize({ comment: ['This is the description for a setting. Values surrounded by single quotes are not to be translated.'], key: 'untitledHint' }, "Controls if the untitled text hint should be visible in the editor.")
+				'markdownDescription': localize({ comment: ['This is the description for a setting. Values surrounded by single quotes are not to be translated.'], key: 'emptyEditorHint' }, "Controls if the empty editor text hint should be visible in the editor.")
 			},
 			'workbench.editor.languageDetection': {
 				type: 'boolean',
@@ -165,6 +166,12 @@ const registry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Con
 				'minimum': 38,
 				'markdownDescription': localize({ comment: ['This is the description for a setting. Values surrounded by single quotes are not to be translated.'], key: 'workbench.editor.tabSizingFixedMaxWidth' }, "Controls the maximum width of tabs when `#workbench.editor.tabSizing#` size is set to `fixed`.")
 			},
+			'window.density.editorTabHeight': {
+				'type': 'string',
+				'enum': ['default', 'compact'],
+				'default': 'default',
+				'markdownDescription': localize({ comment: ['This is the description for a setting. Values surrounded by single quotes are not to be translated.'], key: 'workbench.editor.tabHeight' }, "Controls the height of editor tabs. Also applies to the title control bar when `#workbench.editor.showTabs#` is disabled.")
+			},
 			'workbench.editor.pinnedTabSizing': {
 				'type': 'string',
 				'enum': ['normal', 'compact', 'shrink'],
@@ -176,12 +183,29 @@ const registry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Con
 				],
 				'markdownDescription': localize({ comment: ['This is the description for a setting. Values surrounded by single quotes are not to be translated.'], key: 'pinnedTabSizing' }, "Controls the size of pinned editor tabs. Pinned tabs are sorted to the beginning of all opened tabs and typically do not close until unpinned. This value is ignored when `#workbench.editor.showTabs#` is disabled.")
 			},
+			'workbench.editor.pinnedTabsOnSeparateRow': {
+				'type': 'boolean',
+				'default': false,
+				'markdownDescription': localize('workbench.editor.pinnedTabsOnSeparateRow', "When enabled, displays pinned tabs in a separate row above all other tabs. This value is ignored when `#workbench.editor.showTabs#` is disabled."),
+			},
+			'workbench.editor.preventPinnedEditorClose': {
+				'type': 'string',
+				'enum': ['keyboardAndMouse', 'keyboard', 'mouse', 'never'],
+				'default': 'keyboardAndMouse',
+				'enumDescriptions': [
+					localize('workbench.editor.preventPinnedEditorClose.always', "Always prevent closing the pinned editor when using mouse middle click or keyboard."),
+					localize('workbench.editor.preventPinnedEditorClose.onlyKeyboard', "Prevent closing the pinned editor when using the keyboard."),
+					localize('workbench.editor.preventPinnedEditorClose.onlyMouse', "Prevent closing the pinned editor when using mouse middle click."),
+					localize('workbench.editor.preventPinnedEditorClose.never', "Never prevent closing a pinned editor.")
+				],
+				description: localize('workbench.editor.preventPinnedEditorClose', "Controls whether pinned editors should close when keyboard or middle mouse click is used for closing."),
+			},
 			'workbench.editor.splitSizing': {
 				'type': 'string',
 				'enum': ['auto', 'distribute', 'split'],
 				'default': 'auto',
 				'enumDescriptions': [
-					localize('workbench.editor.splitSizingAuto', "Splits all the editor groups to equal parts unless a part has been changed in size."),
+					localize('workbench.editor.splitSizingAuto', "Splits the active editor group to equal parts, unless all editor groups are already in equal parts. In that case, splits all the editor groups to equal parts."),
 					localize('workbench.editor.splitSizingDistribute', "Splits all the editor groups to equal parts."),
 					localize('workbench.editor.splitSizingSplit', "Splits the active editor group to equal parts.")
 				],
@@ -194,7 +218,7 @@ const registry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Con
 			},
 			'workbench.editor.focusRecentEditorAfterClose': {
 				'type': 'boolean',
-				'description': localize('focusRecentEditorAfterClose', "Controls whether tabs are closed in most recently used order or from left to right."),
+				'description': localize('focusRecentEditorAfterClose', "Controls whether editors are closed in most recently used order or from left to right."),
 				'default': true
 			},
 			'workbench.editor.showIcons': {
@@ -369,10 +393,21 @@ const registry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Con
 				'description': localize('suggestCommands', "Controls whether the command palette should have a list of commonly used commands."),
 				'default': false
 			},
-			'workbench.commandPalette.experimental.useSemanticSimilarity': {
+			'workbench.commandPalette.experimental.askChatLocation': {
+				'type': 'string',
+				tags: ['experimental'],
+				'description': localize('askChatLocation', "Controls where the command palette should ask chat questions."),
+				'default': 'chatView',
+				enum: ['chatView', 'quickChat'],
+				enumDescriptions: [
+					localize('askChatLocation.chatView', "Ask chat questions in the Chat view."),
+					localize('askChatLocation.quickChat', "Ask chat questions in Quick Chat.")
+				]
+			},
+			'workbench.commandPalette.experimental.enableNaturalLanguageSearch': {
 				'type': 'boolean',
 				tags: ['experimental'],
-				'description': localize('useSemanticSimilarity', "Controls whether the command palette should include similar commands. You must have an extension installed that provides Semantic Similarity."),
+				'description': localize('enableNaturalLanguageSearch', "Controls whether the command palette should include similar commands. You must have an extension installed that provides Natural Language support."),
 				'default': true
 			},
 			'workbench.quickOpen.closeOnFocusLost': {
@@ -428,10 +463,16 @@ const registry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Con
 				'default': true,
 				'description': localize('statusBarVisibility', "Controls the visibility of the status bar at the bottom of the workbench.")
 			},
-			'workbench.activityBar.visible': {
-				'type': 'boolean',
-				'default': true,
-				'description': localize('activityBarVisibility', "Controls the visibility of the activity bar in the workbench.")
+			[LayoutSettings.ACTIVITY_BAR_LOCATION]: {
+				'type': 'string',
+				'enum': ['side', 'top', 'hidden'],
+				'default': 'side',
+				'markdownDescription': localize({ comment: ['This is the description for a setting'], key: 'activityBarLocation' }, "Controls the location of the activity bar. It can either show to the `side` or `top` (requires `{0}`) of the primary side bar or `hidden`.", '#window.commandCenter#'),
+				'enumDescriptions': [
+					localize('workbench.activityBar.location.side', "Show the activity bar to the side of the primary side bar."),
+					localize('workbench.activityBar.location.top', "Show the activity bar on top of the primary side bar."),
+					localize('workbench.activityBar.location.hide', "Hide the activity bar.")
+				]
 			},
 			'workbench.activityBar.iconClickBehavior': {
 				'type': 'string',
@@ -521,7 +562,7 @@ const registry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Con
 
 	// Window
 
-	let windowTitleDescription = localize('windowTitle', "Controls the window title based on the active editor. Variables are substituted based on the context:");
+	let windowTitleDescription = localize('windowTitle', "Controls the window title based on the current context such as the opened workspace or active editor. Variables are substituted based on the context:");
 	windowTitleDescription += '\n- ' + [
 		localize('activeEditorShort', "`${activeEditorShort}`: the file name (e.g. myFile.txt)."),
 		localize('activeEditorMedium', "`${activeEditorMedium}`: the path of the file relative to the workspace folder (e.g. myFolder/myFileFolder/myFile.txt)."),
@@ -538,6 +579,7 @@ const registry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Con
 		localize('appName', "`${appName}`: e.g. VS Code."),
 		localize('remoteName', "`${remoteName}`: e.g. SSH"),
 		localize('dirty', "`${dirty}`: an indicator for when the active editor has unsaved changes."),
+		localize('focusedView', "`${focusedView}`: the name of the view that is currently focused."),
 		localize('separator', "`${separator}`: a conditional separator (\" - \") that only shows when surrounded by variables with values or static text.")
 	].join('\n- '); // intentionally concatenated to not produce a string that is too long for translations
 
@@ -570,8 +612,7 @@ const registry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Con
 			},
 			'window.commandCenter': {
 				type: 'boolean',
-				default: false,
-				tags: ['experimental'],
+				default: true,
 				markdownDescription: isWeb ?
 					localize('window.commandCenterWeb', "Show command launcher together with the window title.") :
 					localize({ key: 'window.commandCenter', comment: ['{0} is a placeholder for a setting identifier.'] }, "Show command launcher together with the window title. This setting only has an effect when {0} is set to {1}.", '`#window.titleBarStyle#`', '`custom`')
@@ -713,3 +754,14 @@ const registry = Registry.as<IConfigurationRegistry>(ConfigurationExtensions.Con
 		}
 	});
 })();
+
+Registry.as<IConfigurationMigrationRegistry>(Extensions.ConfigurationMigration)
+	.registerConfigurationMigrations([{
+		key: LayoutSettings.ACTIVITY_BAR_LOCATION, migrateFn: (value: any) => {
+			const result: ConfigurationKeyValuePairs = [['workbench.activityBar.visible', { value: undefined }]];
+			if (value === false) {
+				result.push([LayoutSettings.ACTIVITY_BAR_LOCATION, { value: ActivityBarPosition.HIDDEN }]);
+			}
+			return result;
+		}
+	}]);
