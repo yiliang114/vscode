@@ -40,6 +40,7 @@ export class RemoteExtensionsScannerService implements IRemoteExtensionsScannerS
 		private readonly _extensionGalleryService: IExtensionGalleryService,
 		private readonly _languagePackService: ILanguagePackService
 	) {
+
 		const builtinExtensionsToInstall = environmentService.args['install-builtin-extension'];
 		if (builtinExtensionsToInstall) {
 			_logService.trace('Installing builtin extensions passed via args...');

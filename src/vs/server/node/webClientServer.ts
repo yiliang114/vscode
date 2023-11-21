@@ -94,6 +94,7 @@ export async function serveFile(filePath: string, cacheControl: CacheControl, lo
 
 const APP_ROOT = dirname(FileAccess.asFileUri('').fsPath);
 
+// node
 export class WebClientServer {
 
 	private readonly _webExtensionResourceUrlTemplate: URI | undefined;
@@ -111,12 +112,14 @@ export class WebClientServer {
 	) {
 		this._webExtensionResourceUrlTemplate = this._productService.extensionsGallery?.resourceUrlTemplate ? URI.parse(this._productService.extensionsGallery.resourceUrlTemplate) : undefined;
 		const serverRootPath = getRemoteServerRootPath(_productService);
+		// 静态资源代理路径、回调路径、web-extension-resource 路径
 		this._staticRoute = `${serverRootPath}/static`;
 		this._callbackRoute = `${serverRootPath}/callback`;
 		this._webExtensionRoute = `${serverRootPath}/web-extension-resource`;
 	}
 
 	/**
+	 * TODO: 处理 web 资源
 	 * Handle web resources (i.e. only needed by the web client).
 	 * **NOTE**: This method is only invoked when the server has web bits.
 	 * **NOTE**: This method is only invoked after the connection token has been validated.

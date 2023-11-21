@@ -82,8 +82,10 @@ const eventPrefix = 'monacoworkbench';
 
 export async function setupServerServices(connectionToken: ServerConnectionToken, args: ServerParsedArgs, REMOTE_DATA_FOLDER: string, disposables: DisposableStore) {
 	const services = new ServiceCollection();
+	// 远程链接
 	const socketServer = new SocketServer<RemoteAgentConnectionContext>();
 
+	// node 端会有自己的 productService，内容主要也是读取的 product.json, 因此 code-server 才需要主动更新 project.json
 	const productService: IProductService = { _serviceBrand: undefined, ...product };
 	services.set(IProductService, productService);
 
@@ -189,6 +191,7 @@ export async function setupServerServices(connectionToken: ServerConnectionToken
 	const instantiationService: IInstantiationService = new InstantiationService(services);
 	services.set(ILanguagePackService, instantiationService.createInstance(NativeLanguagePackService));
 
+	// ??
 	const ptyHostStarter = instantiationService.createInstance(
 		NodePtyHostStarter,
 		{
@@ -211,12 +214,16 @@ export async function setupServerServices(connectionToken: ServerConnectionToken
 		const telemetryChannel = new ServerTelemetryChannel(accessor.get(IServerTelemetryService), oneDsAppender);
 		socketServer.registerChannel('telemetry', telemetryChannel);
 
+		// remoteterminal
 		socketServer.registerChannel(REMOTE_TERMINAL_CHANNEL_NAME, new RemoteTerminalChannel(environmentService, logService, ptyHostService, productService, extensionManagementService, configurationService));
 
 		const remoteExtensionsScanner = new RemoteExtensionsScannerService(instantiationService.createInstance(ExtensionManagementCLI, logService), environmentService, userDataProfilesService, extensionsScannerService, logService, extensionGalleryService, languagePackService);
 		socketServer.registerChannel(RemoteExtensionsScannerChannelName, new RemoteExtensionsScannerChannel(remoteExtensionsScanner, (ctx: RemoteAgentConnectionContext) => getUriTransformer(ctx.remoteAuthority)));
 
+		// TODO: 对远程文件系统的 scheme 做了映射？
+		// 远程文件系统？ 这个通道为什么不是 file 或者 vscode-remote 之类的？
 		const remoteFileSystemChannel = new RemoteAgentFileSystemProviderChannel(logService, environmentService);
+		// remoteFilesystem ？？
 		socketServer.registerChannel(REMOTE_FILE_SYSTEM_CHANNEL_NAME, remoteFileSystemChannel);
 
 		socketServer.registerChannel('request', new RequestChannel(accessor.get(IRequestService)));
@@ -224,9 +231,11 @@ export async function setupServerServices(connectionToken: ServerConnectionToken
 		const channel = new ExtensionManagementChannel(extensionManagementService, (ctx: RemoteAgentConnectionContext) => getUriTransformer(ctx.remoteAuthority));
 		socketServer.registerChannel('extensions', channel);
 
+		// 当扩展安装完毕时，需要携带安装未成功的扩展以及未安装的扩展？
 		// clean up extensions folder
 		remoteExtensionsScanner.whenExtensionsReady().then(() => extensionManagementService.cleanUp());
 
+		// 错误上报给 ms
 		disposables.add(new ErrorTelemetry(accessor.get(ITelemetryService)));
 
 		return {

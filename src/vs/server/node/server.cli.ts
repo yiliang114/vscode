@@ -480,6 +480,7 @@ function mapFileToRemoteUri(uri: string): string {
 	return uri.replace(/^file:\/\//, 'vscode-remote://' + cliRemoteAuthority);
 }
 
+// TODO: 通过 cli 初始化的入口
 const [, , productName, version, commit, executableName, ...remainingArgs] = process.argv;
 main({ productName, version, commit, executableName }, remainingArgs).then(null, err => {
 	console.error(err.message || err.stack || err);

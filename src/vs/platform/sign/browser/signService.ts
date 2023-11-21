@@ -87,6 +87,7 @@ export class SignService extends AbstractSignService implements ISignService {
 	}
 
 	private async getWasmBytes(): Promise<ArrayBuffer> {
+		// TODO: 确实会加载到 vsda 这个模块。
 		const response = await fetch(FileAccess.asBrowserUri('vsda/../vsda_bg.wasm').toString(true));
 		if (!response.ok) {
 			throw new Error('error loading vsda');

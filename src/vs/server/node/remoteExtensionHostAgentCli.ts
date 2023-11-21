@@ -64,6 +64,7 @@ class CliMain extends Disposable {
 		process.once('exit', () => this.dispose());
 	}
 
+	// 通过 cli 初始化的入口
 	async run(): Promise<void> {
 		const instantiationService = await this.initServices();
 		await instantiationService.invokeFunction(async accessor => {
@@ -80,6 +81,7 @@ class CliMain extends Disposable {
 			}
 
 			try {
+				// 执行 cli 中携带的操作命令。
 				await this.doRun(instantiationService.createInstance(ExtensionManagementCLI, new ConsoleLogger(logService.getLevel(), false)));
 			} catch (error) {
 				logService.error(error);
@@ -92,6 +94,8 @@ class CliMain extends Disposable {
 	private async initServices(): Promise<IInstantiationService> {
 		const services = new ServiceCollection();
 
+		// TODO: 与 ServerService 的差别是什么？？
+		// node 端会有自己的 productService，内容主要也是读取的 product.json, 因此 code-server 才需要主动更新 project.json
 		const productService = { _serviceBrand: undefined, ...product };
 		services.set(IProductService, productService);
 
@@ -106,9 +110,11 @@ class CliMain extends Disposable {
 		logService.trace(`Remote configuration data at ${this.remoteDataFolder}`);
 		logService.trace('process arguments:', this.args);
 
+		// Node 端的文件系统，这里加载的是 common 下的 fs 还不是 node 下的额fs
 		// Files
 		const fileService = this._register(new FileService(logService));
 		services.set(IFileService, fileService);
+		// 协议 scheme = file. 处理本地的文件系统
 		fileService.registerProvider(Schemas.file, this._register(new DiskFileSystemProvider(logService)));
 
 		const uriIdentityService = new UriIdentityService(fileService);
@@ -141,8 +147,10 @@ class CliMain extends Disposable {
 		return new InstantiationService(services);
 	}
 
+	// TODO: 在 docker/node 中通过 code 这个命令行做后续的操作
 	private async doRun(extensionManagementCLI: ExtensionManagementCLI): Promise<void> {
 
+		// 安装、卸载扩展等操作。 不过 cli 中没有代码这些参数，则什么都不做。
 		// List Extensions
 		if (this.args['list-extensions']) {
 			return extensionManagementCLI.listExtensions(!!this.args['show-versions'], this.args['category']);
@@ -174,6 +182,7 @@ function eventuallyExit(code: number): void {
 	setTimeout(() => process.exit(code), 0);
 }
 
+// TODO: 对外暴露的入口
 export async function run(args: ServerParsedArgs, REMOTE_DATA_FOLDER: string, optionDescriptions: OptionDescriptions<ServerParsedArgs>): Promise<void> {
 	if (args.help) {
 		const executable = product.serverApplicationName + (isWindows ? '.cmd' : '');
@@ -186,7 +195,7 @@ export async function run(args: ServerParsedArgs, REMOTE_DATA_FOLDER: string, op
 		return;
 	}
 
-
+	// 最终惊竟然还是通过 cliMain 实例进行初始化？
 	const cliMain = new CliMain(args, REMOTE_DATA_FOLDER);
 	try {
 		await cliMain.run();

@@ -159,6 +159,7 @@ function extractAlpinefromDocker(nodeVersion, platform, arch) {
 const { nodeVersion, internalNodeVersion } = getNodeVersion();
 
 BUILD_TARGETS.forEach(({ platform, arch }) => {
+	// 为不同平台安装指定的 node 版本运行时？ node 可执行文件，
 	gulp.task(task.define(`node-${platform}-${arch}`, () => {
 		const nodePath = path.join('.build', 'node', `v${nodeVersion}`, `${platform}-${arch}`);
 
@@ -428,6 +429,7 @@ function tweakProductForServerWeb(product) {
 	));
 	gulp.task(minifyTask);
 
+	// 针对不同平台、架构的构建。
 	BUILD_TARGETS.forEach(buildTarget => {
 		const dashed = (str) => (str ? `-${str}` : ``);
 		const platform = buildTarget.platform;
@@ -438,18 +440,19 @@ function tweakProductForServerWeb(product) {
 			const destinationFolderName = `vscode-${type}${dashed(platform)}${dashed(arch)}`;
 
 			const serverTaskCI = task.define(`vscode-${type}${dashed(platform)}${dashed(arch)}${dashed(minified)}-ci`, task.series(
-				gulp.task(`node-${platform}-${arch}`),
-				util.rimraf(path.join(BUILD_ROOT, destinationFolderName)),
-				packageTask(type, platform, arch, sourceFolderName, destinationFolderName)
+				gulp.task(`node-${platform}-${arch}`), // node 运行时安装？
+				util.rimraf(path.join(BUILD_ROOT, destinationFolderName)), // 清空上一次构建产物
+				packageTask(type, platform, arch, sourceFolderName, destinationFolderName) // 处理扩展资源、用于不同环境的启动脚本
 			));
 			gulp.task(serverTaskCI);
 
+			// eg. vscode-reh-web-linux-x64-min
 			const serverTask = task.define(`vscode-${type}${dashed(platform)}${dashed(arch)}${dashed(minified)}`, task.series(
-				compileBuildTask,
-				compileExtensionsBuildTask,
-				compileExtensionMediaBuildTask,
-				minified ? minifyTask : optimizeTask,
-				serverTaskCI
+				compileBuildTask, // 完全编译，包括nls和sourcemaps中的内联源，mangling，minification，用于构建
+				compileExtensionsBuildTask, // 构建全部内建扩展（包含从应用市场下载的），而并非 Web 扩展。
+				compileExtensionMediaBuildTask, // 构建部分需要经过额外 esbuild 的扩展，例如 markdown
+				minified ? minifyTask : optimizeTask, // 压缩合并构建源码
+				serverTaskCI // 处理 server 端运行相关的代码
 			));
 			gulp.task(serverTask);
 		});

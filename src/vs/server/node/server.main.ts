@@ -64,6 +64,7 @@ export function spawnCli() {
 }
 
 /**
+ * TODO: 被 node 服务加载并初始化的入口
  * invoked by server-main.js
  */
 export function createServer(address: string | net.AddressInfo | null): Promise<IServerAPI> {

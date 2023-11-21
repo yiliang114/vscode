@@ -440,6 +440,7 @@ class RemoteExtensionHostAgentServer extends Disposable implements IServerAPI {
 				protocol.sendControl(VSBuffer.fromString(JSON.stringify({ type: 'ok' })));
 				const dataChunk = protocol.readEntireBuffer();
 				protocol.dispose();
+				// TODO: 前后端交互的链接？
 				this._managementConnections[reconnectionToken].acceptReconnection(remoteAddress, socket, dataChunk);
 
 			} else {
@@ -664,7 +665,9 @@ export interface IServerAPI {
 	dispose(): void;
 }
 
+// 创建后端服务
 export async function createServer(address: string | net.AddressInfo | null, args: ServerParsedArgs, REMOTE_DATA_FOLDER: string): Promise<IServerAPI> {
+	// 确定与服务器链接的令牌
 	const connectionToken = await determineServerConnectionToken(args);
 	if (connectionToken instanceof ServerConnectionTokenParseError) {
 		console.warn(connectionToken.message);
@@ -704,8 +707,11 @@ export async function createServer(address: string | net.AddressInfo | null, arg
 	});
 
 	const disposables = new DisposableStore();
+	// 与后端链接，需要有  token 校验。
+	// 通过 web socket 将前端和后端进行链接。 这是后端服务，初始化的所有入口
 	const { socketServer, instantiationService } = await setupServerServices(connectionToken, args, REMOTE_DATA_FOLDER, disposables);
 
+	// 初始化服务的钩子？？？ 调用具有服务访问器的函数。
 	// Set the unexpected error handler after the services have been initialized, to avoid having
 	// the telemetry service overwrite our handler
 	instantiationService.invokeFunction((accessor) => {
@@ -763,6 +769,7 @@ export async function createServer(address: string | net.AddressInfo | null, arg
 
 	const vsdaMod = instantiationService.invokeFunction((accessor) => {
 		const logService = accessor.get(ILogService);
+		// TODO: 确实会加载到 vsda 这个模块。 目前 docker 版本的还
 		const hasVSDA = fs.existsSync(join(FileAccess.asFileUri('').fsPath, '../node_modules/vsda'));
 		if (hasVSDA) {
 			try {
@@ -774,11 +781,13 @@ export async function createServer(address: string | net.AddressInfo | null, arg
 		return null;
 	});
 
+	// TODO: 前端入口！
 	const hasWebClient = fs.existsSync(FileAccess.asFileUri('vs/code/browser/workbench/workbench.html').fsPath);
 
 	if (hasWebClient && address && typeof address !== 'string') {
 		// ships the web ui!
 		const queryPart = (connectionToken.type !== ServerConnectionTokenType.None ? `?${connectionTokenQueryName}=${connectionToken.value}` : '');
+		// Web UI available at http://localhost:9888/?tkn=8f8c093d-a566-4db0-82d3-8ccceaab06f5 url 中会携带一个 tkn
 		console.log(`Web UI available at http://localhost${address.port === 80 ? '' : `:${address.port}`}/${queryPart}`);
 	}
 

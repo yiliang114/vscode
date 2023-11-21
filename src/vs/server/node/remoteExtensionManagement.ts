@@ -111,6 +111,7 @@ export class ManagementConnection {
 		this._onClose.fire(undefined);
 	}
 
+	// TODO: 前后端交互的链接？
 	public acceptReconnection(remoteAddress: string, socket: ISocket, initialDataChunk: VSBuffer): void {
 		this._remoteAddress = remoteAddress;
 		this._log(`The client has reconnected.`);

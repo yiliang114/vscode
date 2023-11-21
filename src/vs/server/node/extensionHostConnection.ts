@@ -282,6 +282,7 @@ export class ExtensionHostConnection {
 			});
 
 			this._extensionHostProcess.on('exit', (code: number, signal: string) => {
+				// 扩展 host 进程退出之后，在 node 服务中需要更新维护的状态
 				this._extensionHostStatusService.setExitInfo(this._reconnectionToken, { code, signal });
 				this._log(`<${pid}> Extension Host Process exited with code: ${code}, signal: ${signal}.`);
 				this._cleanResources();

@@ -39,8 +39,11 @@ async function start() {
 
 	const shouldSpawnCli = parsedArgs.help || parsedArgs.version || extensionLookupArgs.some(a => !!parsedArgs[a]) || (extensionInstallArgs.some(a => !!parsedArgs[a]) && !parsedArgs['start-server']);
 
+	// 处理 cli 传入的命令
 	if (shouldSpawnCli) {
+		// 加载 node 业务部分的入口
 		loadCode().then((mod) => {
+			// 生成 cli 命令启动
 			mod.spawnCli();
 		});
 		return;
@@ -57,6 +60,7 @@ async function start() {
 	const getRemoteExtensionHostAgentServer = () => {
 		if (!_remoteExtensionHostAgentServerPromise) {
 			_remoteExtensionHostAgentServerPromise = loadCode().then(async (mod) => {
+				// 创建远程服务
 				const server = await mod.createServer(address);
 				_remoteExtensionHostAgentServer = server;
 				return server;
@@ -249,6 +253,7 @@ async function findFreePort(host, start, end) {
 	return undefined;
 }
 
+// node 入口文件： ./vs/server/node/server.main
 /** @returns { Promise<typeof import('./vs/server/node/server.main')> } */
 function loadCode() {
 	return new Promise((resolve, reject) => {
@@ -262,7 +267,9 @@ function loadCode() {
 		// so logging SIGPIPE to the console will cause an infinite async loop
 		process.env['VSCODE_HANDLES_SIGPIPE'] = 'true'; // TODO: code-sever 中也有类似
 
+		// TODO: vscode.dev 构建的环境变量? 需要有远程 node_modules 的依赖。 code-server 也是一种 web 架构，而不是原生的 node 架构
 		if (process.env['VSCODE_DEV']) {
+			// 使用 out 目录运行
 			// When running out of sources, we need to load node modules from remote/node_modules,
 			// which are compiled against nodejs, not electron
 			// 注入 remote 目录下的 node_modules 信息，用于模块查找。
@@ -311,6 +318,5 @@ function prompt(question) {
 		});
 	});
 }
-
 
 start();

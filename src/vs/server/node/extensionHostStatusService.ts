@@ -15,6 +15,7 @@ export interface IExtensionHostStatusService {
 	getExitInfo(reconnectionToken: string): IExtensionHostExitInfo | null;
 }
 
+// 维护扩展进程的状态。
 export class ExtensionHostStatusService implements IExtensionHostStatusService {
 	_serviceBrand: undefined;
 

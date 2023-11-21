@@ -34,6 +34,7 @@ export class PtyHostService extends Disposable implements IPtyHostService {
 	declare readonly _serviceBrand: undefined;
 
 	private __connection?: IPtyHostConnection;
+	// 此处不使用ProxyChannel，因为跨多个代理转发时事件丢失
 	// ProxyChannel is not used here because events get lost when forwarding across multiple proxies
 	private __proxy?: IPtyService;
 

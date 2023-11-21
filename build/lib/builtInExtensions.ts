@@ -151,10 +151,12 @@ function writeControlFile(control: IControlFile): void {
 	fs.writeFileSync(controlFilePath, JSON.stringify(control, null, 2));
 }
 
+// 获取内建扩展列表。  '.vscode-oss-dev', 'extensions', 'control.json'
 export function getBuiltInExtensions(): Promise<void> {
 	log('Synchronizing built-in extensions...');
 	log(`You can manage built-in extensions with the ${ansiColors.cyan('--builtin')} flag`);
 
+	//  '.vscode-oss-dev', 'extensions', 'control.json'
 	const control = readControlFile();
 	const streams: Stream[] = [];
 
@@ -174,6 +176,7 @@ export function getBuiltInExtensions(): Promise<void> {
 	});
 }
 
+// Node 环境下执行
 if (require.main === module) {
 	getBuiltInExtensions().then(() => process.exit(0)).catch(err => {
 		console.error(err);
