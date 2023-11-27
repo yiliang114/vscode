@@ -15,6 +15,7 @@ perf.mark('code/server/start');
 // @ts-ignore
 global.vscodeServerStartTime = performance.now();
 
+// node 启动入口. 包含两个功能： 1. 启动 Code Server 端的服务； 2. 执行 code 命令，例如安装扩展、卸载扩展等
 async function start() {
 	const minimist = require('minimist');
 
@@ -259,16 +260,20 @@ function loadCode() {
 		// We would normally install a SIGPIPE listener in bootstrap.js
 		// But in certain situations, the console itself can be in a broken pipe state
 		// so logging SIGPIPE to the console will cause an infinite async loop
-		process.env['VSCODE_HANDLES_SIGPIPE'] = 'true';
+		process.env['VSCODE_HANDLES_SIGPIPE'] = 'true'; // TODO: code-sever 中也有类似
 
 		if (process.env['VSCODE_DEV']) {
 			// When running out of sources, we need to load node modules from remote/node_modules,
 			// which are compiled against nodejs, not electron
+			// 注入 remote 目录下的 node_modules 信息，用于模块查找。
 			process.env['VSCODE_INJECT_NODE_MODULE_LOOKUP_PATH'] = process.env['VSCODE_INJECT_NODE_MODULE_LOOKUP_PATH'] || path.join(__dirname, '..', 'remote', 'node_modules');
 			require('./bootstrap-node').injectNodeModuleLookupPath(process.env['VSCODE_INJECT_NODE_MODULE_LOOKUP_PATH']);
 		} else {
+			// 如果非 vscode.dev 这种 Web 端，会删除 remote 下的 node_modules 路径
 			delete process.env['VSCODE_INJECT_NODE_MODULE_LOOKUP_PATH'];
 		}
+		// 加载 Node Server 的入口文件. bootstrap-amd 是用于初始化 AMDLoader、语言相关的。
+		// vs/server/node/server.main 是所有的 Node 远程 API 注册入口
 		require('./bootstrap-amd').load('vs/server/node/server.main', resolve, reject);
 	});
 }

@@ -9,6 +9,7 @@
 // Setup current working directory in all our node & electron processes
 // - Windows: call `process.chdir()` to always set application folder as cwd
 // -  all OS: store the `process.cwd()` inside `VSCODE_CWD` for consistent lookups
+// 将 “process.cwd()” 存储在 “VSCODE_CWD” 中，以便进行一致的查找
 function setupCurrentWorkingDirectory() {
 	const path = require('path');
 
