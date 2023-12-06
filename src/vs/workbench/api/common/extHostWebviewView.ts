@@ -197,6 +197,7 @@ export class ExtHostWebviewViews implements extHostProtocol.ExtHostWebviewViewsS
 
 		this._webviewViews.set(webviewHandle, revivedView);
 
+		// resolveWebviewView 扩展提供， 填充上 html 以及 webview 相关的事件
 		await provider.resolveWebviewView(revivedView, { state }, cancellation);
 	}
 

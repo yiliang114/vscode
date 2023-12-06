@@ -873,6 +873,7 @@ export class SplitView<TLayoutContext = undefined, TView extends IView<TLayoutCo
 			}
 		}
 
+		// 计算宽度并分配完毕之后，分发空白部分给 view
 		this.distributeEmptySpace();
 		this.layoutViews();
 	}

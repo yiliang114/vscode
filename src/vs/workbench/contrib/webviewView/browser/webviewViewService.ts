@@ -102,6 +102,7 @@ export class WebviewViewService extends Disposable implements IWebviewViewServic
 	private readonly _onNewResolverRegistered = this._register(new Emitter<{ readonly viewType: string }>());
 	public readonly onNewResolverRegistered = this._onNewResolverRegistered.event;
 
+	// vscode.window.registerWebviewViewProvider
 	register(viewType: string, resolver: IWebviewViewResolver): IDisposable {
 		if (this._resolvers.has(viewType)) {
 			throw new Error(`View resolver already registered for ${viewType}`);

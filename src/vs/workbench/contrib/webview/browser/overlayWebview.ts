@@ -117,6 +117,7 @@ export class OverlayWebview extends Disposable implements IOverlayWebview {
 		const oldOwner = this._owner;
 
 		this._owner = owner;
+		// 创建 webview
 		this._show();
 
 		if (oldOwner !== owner) {

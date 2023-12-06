@@ -75,6 +75,7 @@ const compilations = [
 
 const getBaseUrl = out => `https://ticino.blob.core.windows.net/sourcemaps/${commit}/${out}`;
 
+// 编译扩展，需要 ts 编译的
 const tasks = compilations.map(function (tsconfigFile) {
 	const absolutePath = path.join(extensionsPath, tsconfigFile);
 	const relativeDirname = path.dirname(tsconfigFile);

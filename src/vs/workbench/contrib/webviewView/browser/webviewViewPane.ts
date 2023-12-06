@@ -210,6 +210,8 @@ export class WebviewViewPane extends ViewPane {
 		const source = this._webviewDisposables.add(new CancellationTokenSource());
 
 		this.withProgress(async () => {
+			// WebviewPane 需要等 html 加载完毕会后，再停止 progress
+			// 激活加载扩展
 			await this.extensionService.activateByEvent(`onView:${this.id}`);
 
 			const self = this;
@@ -296,6 +298,7 @@ export class WebviewViewPane extends ViewPane {
 		// Temporary fix for https://github.com/microsoft/vscode/issues/110450
 		// There is an animation that lasts about 200ms, update the webview positioning once this animation is complete.
 		clearTimeout(this._repositionTimeout);
+		// webview 定位到底座指定的模块位置之上
 		this._repositionTimeout = setTimeout(() => this.doLayoutWebview(dimension), 200);
 	}
 

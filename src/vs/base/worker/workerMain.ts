@@ -71,6 +71,7 @@
 			}
 			const loaderSrc: string | TrustedScriptURL = monacoBaseUrl + 'vs/loader.js';
 
+			//  FIXME: vscode 似乎有个问题， http 形式的资源加载，会导致 loader.js 加载多次 ?
 			const isCrossOrigin = (/^((http:)|(https:)|(file:))/.test(loaderSrc) && loaderSrc.substring(0, globalThis.origin.length) !== globalThis.origin);
 			if (!isCrossOrigin && canUseEval()) {
 				// use `fetch` if possible because `importScripts`
