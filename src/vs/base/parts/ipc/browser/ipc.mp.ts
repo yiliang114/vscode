@@ -7,6 +7,9 @@ import { IDisposable } from 'vs/base/common/lifecycle';
 import { Client as MessagePortClient } from 'vs/base/parts/ipc/common/ipc.mp';
 
 /**
+ * TODO: Web 端会作为 IPC 连接的客户端？？？？ Web 端不是应该作为 RPC 的客户端么？？？
+ * electron 端的 IPC 实现与 Web 端差异是比较大的。
+ *
  * An implementation of a `IPCClient` on top of DOM `MessagePort`.
  */
 export class Client extends MessagePortClient implements IDisposable {

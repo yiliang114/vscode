@@ -122,6 +122,8 @@ export class ExtHostFileSystem implements ExtHostFileSystemShape {
 	private _handlePool: number = 0;
 
 	constructor(mainContext: IMainContext, private _extHostLanguageFeatures: ExtHostLanguageFeatures) {
+		// 通过 extensionHostManager 上下文，获取一个对应的 proxy.
+		// Proxy: IRPCProtocol
 		this._proxy = mainContext.getProxy(MainContext.MainThreadFileSystem);
 	}
 
@@ -178,6 +180,7 @@ export class ExtHostFileSystem implements ExtHostFileSystemShape {
 			};
 		}
 
+		// 通过 _proxy 调用主进程的文件系统，注册一个文件系统 provider
 		this._proxy.$registerFileSystemProvider(handle, scheme, capabilities, readOnlyMessage).catch(err => {
 			console.error(`FAILED to register filesystem provider of ${extension.identifier.value}-extension for the scheme ${scheme}`);
 			console.error(err);

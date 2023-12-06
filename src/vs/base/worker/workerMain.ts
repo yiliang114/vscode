@@ -112,10 +112,16 @@
 	}
 
 	function loadCode(moduleId: string) {
+		// 加载 Worker 中的 AMD Loader
 		loadAMDLoader().then(() => {
+			// 配置 AMD Loader
 			configureAMDLoader();
+			// 通过 AMD Loader 加载静态资源，初始化 Worker 逻辑。
 			require([moduleId], function (ws) {
+				// TODO: 延迟执行 ??
 				setTimeout(function () {
+					// TODO: extensionHostWorker.ts 文件导出的 create 函数 ？？ 但是那个 create 函数并不需要传参。
+					// 似乎也很像是 simpleWorker.ts 导出的内容
 					const messageHandler = ws.create((msg: any, transfer?: Transferable[]) => {
 						(<any>globalThis).postMessage(msg, transfer);
 					}, null);
@@ -140,12 +146,14 @@
 	let isFirstMessage = true;
 	const beforeReadyMessages: MessageEvent[] = [];
 	globalThis.onmessage = (message: MessageEvent) => {
+		// TODO: 因为只有首个消息传送是用于加载静态资源的？？？
 		if (!isFirstMessage) {
 			beforeReadyMessages.push(message);
 			return;
 		}
 
 		isFirstMessage = false;
+		// iframe 主进程中，通过 postMessage 请求资源
 		loadCode(message.data);
 	};
 })();

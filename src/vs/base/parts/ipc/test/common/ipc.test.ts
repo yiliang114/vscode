@@ -15,6 +15,7 @@ import { URI } from 'vs/base/common/uri';
 import { BufferReader, BufferWriter, ClientConnectionEvent, deserialize, IChannel, IMessagePassingProtocol, IPCClient, IPCServer, IServerChannel, ProxyChannel, serialize } from 'vs/base/parts/ipc/common/ipc';
 import { ensureNoDisposablesAreLeakedInTestSuite } from 'vs/base/test/common/utils';
 
+// TODO: 队列协议？
 class QueueProtocol implements IMessagePassingProtocol {
 
 	private buffering = true;
@@ -35,12 +36,13 @@ class QueueProtocol implements IMessagePassingProtocol {
 	});
 
 	readonly onMessage = this._onMessage.event;
-	other!: QueueProtocol;
+	other!: QueueProtocol; // 在外部设置
 
 	send(buffer: VSBuffer): void {
 		this.other.receive(buffer);
 	}
 
+	// 做了一层优化： 如果在处理消息过程中，则先在缓存中追加队列信息
 	protected receive(buffer: VSBuffer): void {
 		if (this.buffering) {
 			this.buffers.push(buffer);
@@ -53,6 +55,7 @@ class QueueProtocol implements IMessagePassingProtocol {
 function createProtocolPair(): [IMessagePassingProtocol, IMessagePassingProtocol] {
 	const one = new QueueProtocol();
 	const other = new QueueProtocol();
+	// 互相添加对方为协议
 	one.other = other;
 	other.other = one;
 
@@ -223,6 +226,7 @@ suite('Base IPC', function () {
 
 	const store = ensureNoDisposablesAreLeakedInTestSuite();
 
+	// 创建协议对
 	test('createProtocolPair', async function () {
 		const [clientProtocol, serverProtocol] = createProtocolPair();
 
@@ -235,7 +239,9 @@ suite('Base IPC', function () {
 		const b2 = await Event.toPromise(serverProtocol.onMessage);
 		const b4 = await Event.toPromise(clientProtocol.onMessage);
 
+		// 服务端收到的消息与客户端发送的消息是一致的。
 		assert.strictEqual(b1, b2);
+		// 服务端发送的消息与客户端收到的消息是一致的。
 		assert.strictEqual(b3, b4);
 	});
 
@@ -250,13 +256,14 @@ suite('Base IPC', function () {
 			const testServer = store.add(new TestIPCServer());
 			server = testServer;
 
+			// 服务端注册一个 Channel，客户端获取这个 Channel 之后来消费？
 			server.registerChannel(TestChannelId, new TestChannel(service));
-
 			client = store.add(testServer.createConnection('client1'));
 			ipcService = new TestChannelClient(client.getChannel(TestChannelId));
 		});
 
 		test('call success', async function () {
+			// 远程调用服务端的接口
 			const r = await ipcService.marco();
 			return assert.strictEqual(r, 'polo');
 		});

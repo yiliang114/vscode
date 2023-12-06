@@ -275,6 +275,7 @@ export class SimpleWorkerClient<W extends object, H extends object> extends Disp
 
 		let lazyProxyReject: ((err: any) => void) | null = null;
 
+		// TODO: 加载 vs/base/common/worker/simpleWorker 模块初始化 Worker ？？
 		this._worker = this._register(workerFactory.create(
 			'vs/base/common/worker/simpleWorker',
 			(msg: Message) => {

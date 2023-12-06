@@ -24,6 +24,7 @@ suite('IPC, MessagePorts', () => {
 
 		client2.dispose();
 
+		// 客户端关闭，服务端会收到 close 事件
 		assert.ok(await whenClosed);
 
 		client1.dispose();

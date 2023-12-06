@@ -7,6 +7,7 @@
 (function () {
 	'use strict';
 
+	// TODO: sandbox 中的 globals 看起来是来自于 electron
 	const { ipcRenderer, webFrame, contextBridge } = require('electron');
 
 	//#region Utilities

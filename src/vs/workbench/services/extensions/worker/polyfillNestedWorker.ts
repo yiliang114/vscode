@@ -54,6 +54,7 @@ const _bootstrapFnSource = (function _bootstrapFn(workerUrl: string) {
 }).toString();
 
 
+// TODO: 嵌套Worker
 export class NestedWorker extends EventTarget implements Worker {
 
 	onmessage: ((this: Worker, ev: MessageEvent<any>) => any) | null = null;
@@ -66,7 +67,7 @@ export class NestedWorker extends EventTarget implements Worker {
 	constructor(nativePostMessage: typeof postMessage, stringOrUrl: string | URL, options?: WorkerOptions) {
 		super();
 
-		// create bootstrap script
+		// create bootstrap script. 创建初始化脚本
 		const bootstrap = `((${_bootstrapFnSource})('${stringOrUrl}'))`;
 		const blob = new Blob([bootstrap], { type: 'application/javascript' });
 		const blobUrl = URL.createObjectURL(blob);

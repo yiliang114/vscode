@@ -101,6 +101,7 @@ export class ExtensionHostStarter implements IDisposable, IExtensionHostStarter 
 		if (this._shutdown) {
 			throw canceled();
 		}
+		// TODO: 一个扩展 id 会创建一个扩展宿主进程？ 看起来好像不是，应该是多个多个扩展公用？
 		const extHost = this._getExtHost(id);
 		extHost.start({
 			...opts,

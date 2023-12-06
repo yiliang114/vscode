@@ -12,6 +12,7 @@ import { ensureNoDisposablesAreLeakedInTestSuite } from 'vs/base/test/common/uti
 suite('IPC, MessagePorts', () => {
 
 	test('message passing', async () => {
+		// 消息频道。实例的两个只读属性，都可以用来 send 发消息以及 onMessage 监听通道的另一个端口发送的消息
 		const { port1, port2 } = new MessageChannel();
 
 		const client1 = new MessagePortClient(port1, 'client1');

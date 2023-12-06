@@ -69,6 +69,7 @@ export interface IUtilityProcessWorkerWorkbenchService {
 	notifyRestored(): void;
 }
 
+// 实用程序进程 Worker Workbench 服务
 export class UtilityProcessWorkerWorkbenchService extends Disposable implements IUtilityProcessWorkerWorkbenchService {
 
 	declare readonly _serviceBrand: undefined;

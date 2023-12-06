@@ -117,8 +117,10 @@ import { nodeSocketFactory } from 'vs/platform/remote/node/nodeSocketFactory';
 import { NativeEnvironmentService } from 'vs/platform/environment/node/environmentService';
 import { SharedProcessRawConnection, SharedProcessLifecycle } from 'vs/platform/sharedProcess/common/sharedProcess';
 
+// 共享主进程
 class SharedProcessMain extends Disposable implements IClientConnectionFilter {
 
+	// 实用程序进程消息端口服务器
 	private readonly server = this._register(new UtilityProcessMessagePortServer(this));
 
 	private lifecycleService: SharedProcessLifecycleService | undefined = undefined;
@@ -189,24 +191,24 @@ class SharedProcessMain extends Disposable implements IClientConnectionFilter {
 	private async initServices(): Promise<IInstantiationService> {
 		const services = new ServiceCollection();
 
-		// Product
+		// Product 产品服务。node 端单独读取 product.json 文件
 		const productService = { _serviceBrand: undefined, ...product };
 		services.set(IProductService, productService);
 
-		// Main Process
+		// Main Process 主进程
 		const mainRouter = new StaticRouter(ctx => ctx === 'main');
 		const mainProcessService = new MainProcessService(this.server, mainRouter);
 		services.set(IMainProcessService, mainProcessService);
 
-		// Policies
+		// Policies 政策服务
 		const policyService = this.configuration.policiesData ? new PolicyChannelClient(this.configuration.policiesData, mainProcessService.getChannel('policy')) : new NullPolicyService();
 		services.set(IPolicyService, policyService);
 
-		// Environment
+		// Environment 环境服务
 		const environmentService = new NativeEnvironmentService(this.configuration.args, productService);
 		services.set(INativeEnvironmentService, environmentService);
 
-		// Logger
+		// Logger 日志服务： TODO: node 端日志会发送至 Web 端 Console 中？
 		const loggerService = new LoggerChannelClient(undefined, this.configuration.logLevel, environmentService.logsHome, this.configuration.loggers.map(loggerResource => ({ ...loggerResource, resource: URI.revive(loggerResource.resource) })), mainProcessService.getChannel('logger'));
 		services.set(ILoggerService, loggerService);
 
@@ -485,16 +487,20 @@ export async function main(configuration: ISharedProcessConfiguration): Promise<
 
 	// create shared process and signal back to main that we are
 	// ready to accept message ports as client connections
-
+	// 创建共享进程并向main发送信号
+	// 准备接受消息端口作为客户端连接
 	const sharedProcess = new SharedProcessMain(configuration);
+	// ipc 准备
 	process.parentPort.postMessage(SharedProcessLifecycle.ipcReady);
 
 	// await initialization and signal this back to electron-main
 	await sharedProcess.init();
 
+	// 发父进程发送消息：初始化完成
 	process.parentPort.postMessage(SharedProcessLifecycle.initDone);
 }
 
+// parentPort是一个用于与父进程进行通信的特殊端口，会监听从父进程发送的消息
 process.parentPort.once('message', (e: Electron.MessageEvent) => {
 	main(e.data as ISharedProcessConfiguration);
 });

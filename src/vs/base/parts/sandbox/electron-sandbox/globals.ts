@@ -116,6 +116,7 @@ export interface ISandboxContext {
 }
 
 const vscodeGlobal = (globalThis as any).vscode;
+// TODO: sandbox 现在我简单理解为是 electron 中可以访问 Web API 的部分，但是它不能直接访问 Node 进程，需要一层代理 API 才可以直接访问到 Node 进程。
 export const ipcRenderer: IpcRenderer = vscodeGlobal.ipcRenderer;
 export const ipcMessagePort: IpcMessagePort = vscodeGlobal.ipcMessagePort;
 export const webFrame: WebFrame = vscodeGlobal.webFrame;

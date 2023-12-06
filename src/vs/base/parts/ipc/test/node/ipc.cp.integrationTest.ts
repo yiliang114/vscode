@@ -26,7 +26,9 @@ suite('IPC, Child Process', function () {
 	let service: ITestService;
 
 	setup(() => {
+		// 客户端服务创建
 		client = createClient();
+		// 获取频道。 TODO: 服务端 test Channel 什么时候建立的？
 		channel = client.getChannel('test');
 		service = new TestServiceClient(channel);
 	});

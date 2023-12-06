@@ -325,6 +325,7 @@ function connectToRenderer(protocol: IMessagePassingProtocol): Promise<IRenderer
 	});
 }
 
+// ！！！ 由 Node 端实现的扩展宿主进程！！！
 async function startExtensionHostProcess(): Promise<void> {
 
 	// Print a console message when rejection isn't handled within N seconds. For details:

@@ -32,6 +32,7 @@ const regexpModuleLocationAsar: AppResourcePath = `${nodeModulesAsarPath}/vscode
 const moduleLocation: AppResourcePath = `${nodeModulesPath}/@vscode/vscode-languagedetection`;
 const moduleLocationAsar: AppResourcePath = `${nodeModulesAsarPath}/@vscode/vscode-languagedetection`;
 
+// 语言检测服务. TODO: 通过 Worker 来检测，当前是什么语言？
 export class LanguageDetectionService extends Disposable implements ILanguageDetectionService {
 	static readonly enablementSettingKey = 'workbench.editor.languageDetection';
 	static readonly historyBasedEnablementConfig = 'workbench.editor.historyBasedLanguageDetection';

@@ -12,6 +12,11 @@ export interface Sender {
 }
 
 /**
+ * 协议，即约定，约定内容其实就是：在哪个channel: string 发消息。
+ * 协议也就是按照约定的规范创建接口和返回，就可以进行通信。至于通信是通过什么频道（或者方式），我不管。
+ *
+ * 至于具体协议内容，可能包括连接、断开、事件等等
+ *
  * The Electron `Protocol` leverages Electron style IPC communication (`ipcRenderer`, `ipcMain`)
  * for the implementation of the `IMessagePassingProtocol`. That style of API requires a channel
  * name for sending data.
@@ -20,14 +25,17 @@ export class Protocol implements IMessagePassingProtocol {
 
 	constructor(private sender: Sender, readonly onMessage: Event<VSBuffer>) { }
 
+	// 发送消息
 	send(message: VSBuffer): void {
 		try {
+			// 'vscode:message' 本质上是一个频道
 			this.sender.send('vscode:message', message.buffer);
 		} catch (e) {
 			// systems are going down
 		}
 	}
 
+	// 断开连接
 	disconnect(): void {
 		this.sender.send('vscode:disconnect', null);
 	}

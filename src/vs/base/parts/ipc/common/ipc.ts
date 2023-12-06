@@ -15,11 +15,20 @@ import { revive } from 'vs/base/common/marshalling';
 import * as strings from 'vs/base/common/strings';
 import { isFunction, isUndefinedOrNull } from 'vs/base/common/types';
 
+// IPC 实际上就是发送和接收信息的能力，而要能准确地进行通信，客户端和服务端需要在同一个频道上。
+
 /**
+ * 客户端频道
+ *
  * An `IChannel` is an abstraction over a collection of commands.
  * You can `call` several commands on a channel, each taking at
  * most one single argument. A `call` always returns a promise
  * with at most one single return value.
+ *
+ * IChannel 是对命令集合的抽象
+ * call 总是返回一个至多带有单个返回值的 Promise
+ *
+ * 作为一个频道而言，它会有两个功能，一个是点播call，一个是收听，即listen。
  */
 export interface IChannel {
 	call<T>(command: string, arg?: any, cancellationToken?: CancellationToken): Promise<T>;
@@ -27,15 +36,20 @@ export interface IChannel {
 }
 
 /**
+ * 服务端频道
+ *
  * An `IServerChannel` is the counter part to `IChannel`,
  * on the server-side. You should implement this interface
  * if you'd like to handle remote promises or events.
+ *
+ * 都是一个 call 一个 listen，用于远程调用。
  */
 export interface IServerChannel<TContext = string> {
 	call<T>(ctx: TContext, command: string, arg?: any, cancellationToken?: CancellationToken): Promise<T>;
 	listen<T>(ctx: TContext, event: string, arg?: any): Event<T>;
 }
 
+// 请求类型约定
 const enum RequestType {
 	Promise = 100,
 	PromiseCancel = 101,
@@ -62,6 +76,7 @@ type IRawEventListenRequest = { type: RequestType.EventListen; id: number; chann
 type IRawEventDisposeRequest = { type: RequestType.EventDispose; id: number };
 type IRawRequest = IRawPromiseRequest | IRawPromiseCancelRequest | IRawEventListenRequest | IRawEventDisposeRequest;
 
+// 返回类型约定
 const enum ResponseType {
 	Initialize = 200,
 	PromiseSuccess = 201,
@@ -95,6 +110,8 @@ interface IHandler {
 	(response: IRawResponse): void;
 }
 
+// IPC 通信中，协议是最基础的。
+// 作为通信能力，最基本的协议范围包括发送和接受消息
 export interface IMessagePassingProtocol {
 	send(buffer: VSBuffer): void;
 	onMessage: Event<VSBuffer>;
@@ -110,6 +127,8 @@ enum State {
 }
 
 /**
+ * 频道的服务端
+ *
  * An `IChannelServer` hosts a collection of channels. You are
  * able to register channels onto it, provided a channel name.
  */
@@ -118,6 +137,8 @@ export interface IChannelServer<TContext = string> {
 }
 
 /**
+ * 频道客户端
+ *
  * An `IChannelClient` has access to a collection of channels. You
  * are able to get those channels, given their channel name.
  */
@@ -326,28 +347,47 @@ interface PendingRequest {
 	timeoutTimer: any;
 }
 
+// 服务端包括 ChannelServer 和 IPCServer，ChannelServer也只处理与频道直接相关的功能，包括：
+// 1. 注册频道 registerChannel。
+// 2. 监听客户端消息 onRawMessage/onPromise/onEventListen。
+// 3. 处理客户端消息并返回请求结果 sendResponse。
+// TODO: ChannelServer 只能响应请求 ？？？
+
 export class ChannelServer<TContext = string> implements IChannelServer<TContext>, IDisposable {
 
+	// 保存多个频道，也就是支持一对多，多对多
 	private channels = new Map<string, IServerChannel<TContext>>();
 	private activeRequests = new Map<number, IDisposable>();
 	private protocolListener: IDisposable | null;
 
+	// 请求可能会进入尚未注册的频道。
 	// Requests might come in for channels which are not yet registered.
 	// They will timeout after `timeoutDelay`.
 	private pendingRequests = new Map<string, PendingRequest[]>();
 
+	/**
+	 *
+	 * @param protocol 频道通信协议
+	 * @param ctx 连接此server的窗口
+	 * @param logger
+	 * @param timeoutDelay 设置超时响应时间
+	 */
 	constructor(private protocol: IMessagePassingProtocol, private ctx: TContext, private logger: IIPCLogger | null = null, private timeoutDelay: number = 1000) {
 		this.protocolListener = this.protocol.onMessage(msg => this.onRawMessage(msg));
+		// 初始化消息。通知对应的 port，当前 Channel 初始化了
 		this.sendResponse({ type: ResponseType.Initialize });
 	}
 
+	// 注册 Channel. 只有 ChannelServer 才能注册 Channel; 而 ChannelClient 只能获取 Channel。
 	registerChannel(channelName: string, channel: IServerChannel<TContext>): void {
 		this.channels.set(channelName, channel);
 
+		// 注册好频道之后，刷新一下准备中的请求（当前通道）
 		// https://github.com/microsoft/vscode/issues/72531
 		setTimeout(() => this.flushPendingRequests(channelName), 0);
 	}
 
+	// 发送频道请求
 	private sendResponse(response: IRawResponse): void {
 		switch (response.type) {
 			case ResponseType.Initialize: {
@@ -367,8 +407,10 @@ export class ChannelServer<TContext = string> implements IChannelServer<TContext
 		}
 	}
 
+	// 发送频道请求
 	private send(header: any, body: any = undefined): number {
 		const writer = new BufferWriter();
+		// 序列化
 		serialize(writer, header);
 		serialize(writer, body);
 		return this.sendBuffer(writer.buffer);
@@ -384,8 +426,10 @@ export class ChannelServer<TContext = string> implements IChannelServer<TContext
 		}
 	}
 
+	// 接收请求结果，并处理
 	private onRawMessage(message: VSBuffer): void {
 		const reader = new BufferReader(message);
+		// 反序列化
 		const header = deserialize(reader);
 		const body = deserialize(reader);
 		const type = header[0] as RequestType;
@@ -418,6 +462,7 @@ export class ChannelServer<TContext = string> implements IChannelServer<TContext
 		let promise: Promise<any>;
 
 		try {
+			// 远程调用 promise
 			promise = channel.call(this.ctx, request.name, request.arg, cancellationTokenSource.token);
 		} catch (err) {
 			promise = Promise.reject(err);
@@ -425,7 +470,9 @@ export class ChannelServer<TContext = string> implements IChannelServer<TContext
 
 		const id = request.id;
 
+		// 正确调用、错误调用
 		promise.then(data => {
+			// 远程调用之后，将结果返回。此时对于数据内容还未做处理
 			this.sendResponse(<IRawResponse>{ id, data, type: ResponseType.PromiseSuccess });
 		}, err => {
 			if (err instanceof Error) {
@@ -441,6 +488,7 @@ export class ChannelServer<TContext = string> implements IChannelServer<TContext
 			}
 		}).finally(() => {
 			disposable.dispose();
+			// 请求调用之后，需要删除激活
 			this.activeRequests.delete(request.id);
 		});
 
@@ -452,6 +500,7 @@ export class ChannelServer<TContext = string> implements IChannelServer<TContext
 		const channel = this.channels.get(request.channelName);
 
 		if (!channel) {
+			// 如果还没有注册当前通道，则将请求先收集起来，等待后续通道注册之后，一次性刷新
 			this.collectPendingRequest(request);
 			return;
 		}
@@ -502,6 +551,7 @@ export class ChannelServer<TContext = string> implements IChannelServer<TContext
 			for (const request of requests) {
 				clearTimeout(request.timeoutTimer);
 
+				// 请求有不同类型： Promise 应该是远程调用？ EventListen 事件监听应该也就是将接收远程的事件调用
 				switch (request.request.type) {
 					case RequestType.Promise: this.onPromise(request.request); break;
 					case RequestType.EventListen: this.onEventListen(request.request); break;
@@ -532,11 +582,13 @@ export interface IIPCLogger {
 	logOutgoing(msgLength: number, requestId: number, initiator: RequestInitiator, str: string, data?: any): void;
 }
 
+// TODO: ChannelClient 只能发送请求 ？？？
 export class ChannelClient implements IChannelClient, IDisposable {
 
 	private isDisposed: boolean = false;
 	private state: State = State.Uninitialized;
 	private activeRequests = new Set<IDisposable>();
+	// 存储要处理的handler,当请求返回时，根据请求id,选择相应的handler进行返回
 	private handlers = new Map<number, IHandler>();
 	private lastRequestId: number = 0;
 	private protocolListener: IDisposable | null;
@@ -545,11 +597,16 @@ export class ChannelClient implements IChannelClient, IDisposable {
 	private readonly _onDidInitialize = new Emitter<void>();
 	readonly onDidInitialize = this._onDidInitialize.event;
 
+	/**
+	 * @param protocol 通信协议
+	 * @param logger
+	 */
 	constructor(private protocol: IMessagePassingProtocol, logger: IIPCLogger | null = null) {
 		this.protocolListener = this.protocol.onMessage(msg => this.onBuffer(msg));
 		this.logger = logger;
 	}
 
+	// 频道的概念是用来进行远程调用的？？？
 	getChannel<T extends IChannel>(channelName: string): T {
 		const that = this;
 
@@ -558,12 +615,15 @@ export class ChannelClient implements IChannelClient, IDisposable {
 				if (that.isDisposed) {
 					return Promise.reject(new CancellationError());
 				}
+				// 发送请求，去调用服务端频道的相应功能
+				// 进行远程调用
 				return that.requestPromise(channelName, command, arg, cancellationToken);
 			},
 			listen(event: string, arg: any) {
 				if (that.isDisposed) {
 					return Event.None;
 				}
+				// 监听服务端频道发布的内容。
 				return that.requestEvent(channelName, event, arg);
 			}
 		} as T;
@@ -613,6 +673,7 @@ export class ChannelClient implements IChannelClient, IDisposable {
 			};
 
 			let uninitializedPromise: CancelablePromise<void> | null = null;
+			// 可操作
 			if (this.state === State.Idle) {
 				doRequest();
 			} else {
@@ -774,9 +835,11 @@ export interface ClientConnectionEvent {
 	onDidClientDisconnect: Event<void>;
 }
 
+// 频道直接相关的客户端部分 ChannelClient 和服务端部分 ChannelServer，但是它们之间需要连接起来才能进行通信。
+// 一个连接(Connection)由 ChannelClient 和 ChannelServer 组成。
 interface Connection<TContext> extends Client<TContext> {
-	readonly channelServer: ChannelServer<TContext>;
-	readonly channelClient: ChannelClient;
+	readonly channelServer: ChannelServer<TContext>; // 服务端
+	readonly channelClient: ChannelClient; // 客户端
 }
 
 /**
@@ -786,12 +849,18 @@ interface Connection<TContext> extends Client<TContext> {
  * As the owner of a protocol, you should extend both this
  * and the `IPCClient` classes to get IPC implementations
  * for your protocol.
+ *
+ *
+ * IPCServer 基于 channelServer，负责服务端到客户端的连接，由于一个服务端可提供多个服务，因此会有多个连接。
  */
 export class IPCServer<TContext = string> implements IChannelServer<TContext>, IRoutingChannelClient<TContext>, IConnectionHub<TContext>, IDisposable {
 
+	// 维护所有频道
 	private channels = new Map<string, IServerChannel<TContext>>();
+	// 维护客户端与服务端的所有连接。 TODO: 连接的 Content 实际上是 string =>
 	private _connections = new Set<Connection<TContext>>();
 
+	// 连接的添加、删除事件
 	private readonly _onDidAddConnection = new Emitter<Connection<TContext>>();
 	readonly onDidAddConnection: Event<Connection<TContext>> = this._onDidAddConnection.event;
 
@@ -800,6 +869,8 @@ export class IPCServer<TContext = string> implements IChannelServer<TContext>, I
 
 	private readonly disposables = new DisposableStore();
 
+	// 由于服务端有多个服务，因此可能存在多个连接
+	// 获取连接信息
 	get connections(): Connection<TContext>[] {
 		const result: Connection<TContext>[] = [];
 		this._connections.forEach(ctx => result.push(ctx));
@@ -807,22 +878,31 @@ export class IPCServer<TContext = string> implements IChannelServer<TContext>, I
 	}
 
 	constructor(onDidClientConnect: Event<ClientConnectionEvent>) {
+		// 客户端连接上之后
 		this.disposables.add(onDidClientConnect(({ protocol, onDidClientDisconnect }) => {
 			const onFirstMessage = Event.once(protocol.onMessage);
 
+			// 收到第一次消息
 			this.disposables.add(onFirstMessage(msg => {
 				const reader = new BufferReader(msg);
+				// 解析到 Channel 名
 				const ctx = deserialize(reader) as TContext;
 
+				// 频道服务端初始化所需： 协议 + （需要初始化的）频道名
 				const channelServer = new ChannelServer(protocol, ctx);
+				// 频道客户端初始化所需： 协议
 				const channelClient = new ChannelClient(protocol);
 
+				// 调用频道服务端注册所有频道
 				this.channels.forEach((channel, name) => channelServer.registerChannel(name, channel));
 
+				// 连接 = 频道服务端 + 频道客户端 + 频道名
 				const connection: Connection<TContext> = { channelServer, channelClient, ctx };
+				// 保存连接
 				this._connections.add(connection);
 				this._onDidAddConnection.fire(connection);
 
+				// 断开链接
 				this.disposables.add(onDidClientDisconnect(() => {
 					channelServer.dispose();
 					channelClient.dispose();
@@ -833,6 +913,12 @@ export class IPCServer<TContext = string> implements IChannelServer<TContext>, I
 		}));
 	}
 
+
+	/**
+	 * 从远程客户端获取频道。
+	 * 通过路由器后，可以指定它要呼叫和监听/从哪个客户端。
+	 * 否则，当在没有路由器的情况下进行呼叫时，将选择一个随机客户端，而在没有路由器的情况下进行侦听时，将监听每个客户端。
+	 */
 	/**
 	 * Get a channel from a remote client. When passed a router,
 	 * one can specify which client it wants to call and listen to/from.
@@ -935,9 +1021,11 @@ export class IPCServer<TContext = string> implements IChannelServer<TContext>, I
 		return emitter.event;
 	}
 
+	// 注册频道
 	registerChannel(channelName: string, channel: IServerChannel<TContext>): void {
 		this.channels.set(channelName, channel);
 
+		// 添加到连接中
 		for (const connection of this._connections) {
 			connection.channelServer.registerChannel(channelName, channel);
 		}
@@ -959,23 +1047,38 @@ export class IPCServer<TContext = string> implements IChannelServer<TContext>, I
 }
 
 /**
- * An `IPCClient` is both a channel client and a channel server.
+ * VS Code 扩展进程 （客户端）包括 ChannelClient 和 IPCClient
+ *
+ *
+ * An `IPCClient` is both a channel client and a channel server. "IPCClient" 既是通道客户端又是通道服务器。
  *
  * As the owner of a protocol, you should extend both this
  * and the `IPCServer` classes to get IPC implementations
  * for your protocol.
+ *
+ * 作为一个协议的所有者，你应该为你的协议扩展 'IPCClient' 和 'IPCServer' 类来获得 IPC 实现
+ *
+ * IPCClient基于ChannelClient，负责简单的客户端到服务端一对一连接
  */
 export class IPCClient<TContext = string> implements IChannelClient, IChannelServer<TContext>, IDisposable {
 
+	// ChannelClient 只处理最基础的频道相关的功能， 包括：
+	// 1. 获得频道 getChannel。
+	// 2. 发送频道请求 sendRequest。
+	// 3. 接收请求结果，并处理onResponse/onBuffer。
 	private channelClient: ChannelClient;
 	private channelServer: ChannelServer<TContext>;
 
 	constructor(protocol: IMessagePassingProtocol, ctx: TContext, ipcLogger: IIPCLogger | null = null) {
+		// TODO: 数据缓冲区 ？？
 		const writer = new BufferWriter();
 		serialize(writer, ctx);
+		// 协议就是成对出现的 port. 要是和客户端通信的
 		protocol.send(writer.buffer);
 
+		// 频道客户端初始化： 协议 + logger
 		this.channelClient = new ChannelClient(protocol, ipcLogger);
+		// 频道服务器初始化： 协议 + 频道名 + logger
 		this.channelServer = new ChannelServer(protocol, ctx, ipcLogger);
 	}
 
@@ -983,6 +1086,7 @@ export class IPCClient<TContext = string> implements IChannelClient, IChannelSer
 		return this.channelClient.getChannel(channelName) as T;
 	}
 
+	// TODO: 客户端为什么可以注册 Channel ??
 	registerChannel(channelName: string, channel: IServerChannel<TContext>): void {
 		this.channelServer.registerChannel(channelName, channel);
 	}

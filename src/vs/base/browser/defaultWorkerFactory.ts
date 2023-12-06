@@ -101,6 +101,7 @@ class WebWorker extends Disposable implements IWorker {
 		} else {
 			this.worker = Promise.resolve(workerOrPromise);
 		}
+		//
 		this.postMessage(moduleId, []);
 		this.worker.then((w) => {
 			w.onmessage = function (ev) {
@@ -126,6 +127,7 @@ class WebWorker extends Disposable implements IWorker {
 		return this.id;
 	}
 
+	// 加载模块以及消息通信？ 会从这里请求 vs/base/common/worker/simpleWorker 模块
 	public postMessage(message: any, transfer: Transferable[]): void {
 		this.worker?.then(w => {
 			try {

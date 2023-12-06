@@ -21,17 +21,21 @@ import { ChannelClient as IPCClient, ChannelServer as IPCServer, IChannel, IChan
  * We should move all implementations to use named ipc.net, so we stop depending on cp.fork.
  */
 
+// Node 端主进程 （服务端） 进程，创建时需要声明好协议： 实现 send 和 onMessage 函数。
 export class Server<TContext extends string> extends IPCServer<TContext> {
 	constructor(ctx: TContext) {
 		super({
 			send: r => {
 				try {
+					// 调用 node 运行时的 process.send 发送消息
 					process.send?.((<Buffer>r.buffer).toString('base64'));
 				} catch (e) { /* not much to do */ }
 			},
+			// 监听 process.message 事件
 			onMessage: Event.fromNodeEventEmitter(process, 'message', msg => VSBuffer.wrap(Buffer.from(msg, 'base64')))
 		}, ctx);
 
+		// process 断开连接
 		process.once('disconnect', () => this.dispose());
 	}
 }
@@ -81,6 +85,7 @@ export interface IIPCOptions {
 	useQueue?: boolean;
 }
 
+// Node 客户端进程
 export class Client implements IChannelClient, IDisposable {
 
 	private disposeDelayer: Delayer<void> | undefined;
@@ -202,6 +207,7 @@ export class Client implements IChannelClient, IDisposable {
 
 			removeDangerousEnvVariables(forkOpts.env);
 
+			// Node 子进程 fork API.
 			this.child = fork(this.modulePath, args, forkOpts);
 
 			const onMessageEmitter = new Emitter<VSBuffer>();

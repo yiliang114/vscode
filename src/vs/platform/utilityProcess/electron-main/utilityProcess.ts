@@ -211,6 +211,7 @@ export class UtilityProcess extends Disposable {
 	start(configuration: IUtilityProcessConfiguration): boolean {
 		const started = this.doStart(configuration);
 
+		// 运行配置传送
 		if (started && configuration.payload) {
 			this.postMessage(configuration.payload);
 		}
@@ -368,13 +369,14 @@ export class UtilityProcess extends Disposable {
 			return; // already killed, crashed or never started
 		}
 
+		// 底层调用的方法
 		this.process.postMessage(message, transfer);
 	}
 
 	connect(payload?: unknown): Electron.MessagePortMain {
+		// 与 Web 架构中的 MessageChannel 相对应：产生两个消息通信的端口
 		const { port1: outPort, port2: utilityProcessPort } = new MessageChannelMain();
 		this.postMessage(payload, [utilityProcessPort]);
-
 		return outPort;
 	}
 

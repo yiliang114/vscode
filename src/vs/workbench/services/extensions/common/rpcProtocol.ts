@@ -114,6 +114,7 @@ const noop = () => { };
 const _RPCProtocolSymbol = Symbol.for('rpcProtocol');
 const _RPCProxySymbol = Symbol.for('rpcProxy');
 
+// RPC协议：用于主进程、子进程之间的通信
 export class RPCProtocol extends Disposable implements IRPCProtocol {
 
 	[_RPCProtocolSymbol] = true;
@@ -238,7 +239,9 @@ export class RPCProtocol extends Disposable implements IRPCProtocol {
 		return transformIncomingURIs(obj, this._uriTransformer);
 	}
 
+	// 在主进程的上下文获取子进程，在子进程的上下文获取主进程
 	public getProxy<T>(identifier: ProxyIdentifier<T>): Proxied<T> {
+		// ProxyIdentifier. nid 是一个数字，用于标识 rpc (对，直接用 number 进行标识) sid 是一个字符串。
 		const { nid: rpcId, sid } = identifier;
 		if (!this._proxies[rpcId]) {
 			this._proxies[rpcId] = this._createProxy(rpcId, sid);
@@ -249,8 +252,11 @@ export class RPCProtocol extends Disposable implements IRPCProtocol {
 	private _createProxy<T>(rpcId: number, debugName: string): T {
 		const handler = {
 			get: (target: any, name: PropertyKey) => {
+				// $ 开头的函数，会进行远程调用
 				if (typeof name === 'string' && !target[name] && name.charCodeAt(0) === CharCode.DollarSign) {
+					// 缓存下 key 数据
 					target[name] = (...myArgs: any[]) => {
+						// rpcId: server/client 两边都通过一个 number 作为辨别 rpc 远程调用的依据。
 						return this._remoteCall(rpcId, name, myArgs);
 					};
 				}
@@ -456,6 +462,7 @@ export class RPCProtocol extends Disposable implements IRPCProtocol {
 		return method.apply(actor, args);
 	}
 
+	// 通过 rpc 进行远程调用
 	private _remoteCall(rpcId: number, methodName: string, args: any[]): Promise<any> {
 		if (this._isDisposed) {
 			return new CanceledLazyPromise();

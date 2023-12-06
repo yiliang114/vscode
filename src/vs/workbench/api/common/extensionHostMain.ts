@@ -147,6 +147,8 @@ export class ExtensionHostMain {
 		messagePorts?: ReadonlyMap<string, MessagePort>
 	) {
 		this._hostUtils = hostUtils;
+		// TODO: 经过全文搜索了一下，RPC 基本是属于跨进程之间的远程调用。
+		// TODO: protocol 在不同平台有不同的实现，但是实际都是一个包含 send 和 onMessage 的对象。比如 Worker 实现是使用 MessageChannel 进行封装的，用于 Worker 中的扩展进程与主进程的通信。
 		this._rpcProtocol = new RPCProtocol(protocol, null, uriTransformer);
 
 		// ensure URIs are transformed and revived

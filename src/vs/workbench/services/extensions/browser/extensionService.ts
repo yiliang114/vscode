@@ -69,6 +69,7 @@ export class ExtensionService extends AbstractExtensionService implements IExten
 		@IDialogService dialogService: IDialogService,
 	) {
 		const extensionsProposedApi = instantiationService.createInstance(ExtensionsProposedApi);
+		// 用于管理扩展进程的工厂函数。Web 端工厂函数，全局只有一个？？
 		const extensionHostFactory = new BrowserExtensionHostFactory(
 			extensionsProposedApi,
 			() => this._scanWebExtensions(),
@@ -124,6 +125,7 @@ export class ExtensionService extends AbstractExtensionService implements IExten
 		return null;
 	}
 
+	// 初始化 http/https 形式的文件系统
 	private _initFetchFileSystem(): void {
 		const provider = new FetchFileSystemProvider();
 		this._register(this._fileService.registerProvider(Schemas.http, provider));
@@ -226,6 +228,7 @@ class BrowserExtensionHostFactory implements IExtensionHostFactory {
 		@ILogService private readonly _logService: ILogService,
 	) { }
 
+	// TODO: 对于不同的架构而言（纯 Web/Web + Node)
 	createExtensionHost(runningLocations: ExtensionRunningLocationTracker, runningLocation: ExtensionRunningLocation, isInitialStart: boolean): IExtensionHost | null {
 		switch (runningLocation.kind) {
 			case ExtensionHostKind.LocalProcess: {
@@ -237,9 +240,11 @@ class BrowserExtensionHostFactory implements IExtensionHostFactory {
 						? ExtensionHostStartup.EagerManualStart
 						: ExtensionHostStartup.EagerAutoStart
 				);
+				// Web 端会通过 Web Worker 作为扩展的宿主环境。 TODO: 我们需要确定，是否是一个扩展，一个宿主环境
 				return this._instantiationService.createInstance(WebWorkerExtensionHost, runningLocation, startup, this._createLocalExtensionHostDataProvider(runningLocations, runningLocation, isInitialStart));
 			}
 			case ExtensionHostKind.Remote: {
+				// TODO: 远程运行模式，会先看是否能够与远程建立链接，这就是设置中出现的 远程，reh 模式才会有的（remote extHost 模式）
 				const remoteAgentConnection = this._remoteAgentService.getConnection();
 				if (remoteAgentConnection) {
 					return this._instantiationService.createInstance(RemoteExtensionHost, runningLocation, this._createRemoteExtensionHostDataProvider(runningLocations, remoteAgentConnection.remoteAuthority));

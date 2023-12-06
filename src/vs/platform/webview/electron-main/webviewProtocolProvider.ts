@@ -11,6 +11,7 @@ import { URI } from 'vs/base/common/uri';
 
 export class WebviewProtocolProvider extends Disposable {
 
+	// TODO: 看起来是只有 Electron 才引入了 SW ？
 	private static validWebviewFilePaths = new Map([
 		['/index.html', 'index.html'],
 		['/fake.html', 'fake.html'],

@@ -9,6 +9,7 @@ import { IRemoteService } from 'vs/platform/ipc/common/services';
 
 export const IMainProcessService = createDecorator<IMainProcessService>('mainProcessService');
 
+// TODO: 这个主进程似乎是只有在 Node 和 Electron 中才会存在？
 export interface IMainProcessService extends IRemoteService { }
 
 /**
@@ -23,6 +24,7 @@ export class MainProcessService implements IMainProcessService {
 		private router: StaticRouter
 	) { }
 
+	// getChannel/registerChannel 是 vscode 自己创造的概念，而不是 MessageChannel 原生就有的。TODO: 为什么要有？
 	getChannel(channelName: string): IChannel {
 		return this.server.getChannel(channelName, this.router);
 	}

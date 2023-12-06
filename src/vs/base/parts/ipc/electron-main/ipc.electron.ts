@@ -17,6 +17,7 @@ interface IIPCEvent {
 }
 
 function createScopedOnMessageEvent(senderId: number, eventName: string): Event<VSBuffer | null> {
+	// 监听 IPC 主进程发来的消息
 	const onMessage = Event.fromNodeEventEmitter<IIPCEvent>(validatedIpcMain, eventName, (event, message) => ({ event, message }));
 	const onMessageFromSender = Event.filter(onMessage, ({ event }) => event.sender.id === senderId);
 
@@ -42,6 +43,7 @@ export class Server extends IPCServer {
 			const onDidClientReconnect = new Emitter<void>();
 			Server.Clients.set(id, toDisposable(() => onDidClientReconnect.fire()));
 
+			// 监听 electron 客户端？？ 发送的 vscode:message 消息
 			const onMessage = createScopedOnMessageEvent(id, 'vscode:message') as Event<VSBuffer>;
 			const onDidClientDisconnect = Event.any(Event.signal(createScopedOnMessageEvent(id, 'vscode:disconnect')), onDidClientReconnect.event);
 			const protocol = new ElectronProtocol(webContents, onMessage);

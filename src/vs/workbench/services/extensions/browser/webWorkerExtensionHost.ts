@@ -119,7 +119,9 @@ export class WebWorkerExtensionHost extends Disposable implements IExtensionHost
 		return `${relativeExtensionHostIframeSrc.toString(true)}${suffix}`;
 	}
 
+	// Web 端的扩展进程宿主，是通过 Web Worker 实现的. web 端是通过 web worker 进行通信，实现的？
 	public async start(): Promise<IMessagePassingProtocol> {
+		// 加载一张内部的 iframe
 		if (!this._protocolPromise) {
 			this._protocolPromise = this._startInsideIframe();
 			this._protocolPromise.then(protocol => this._protocol = protocol);
@@ -166,6 +168,7 @@ export class WebWorkerExtensionHost extends Disposable implements IExtensionHost
 			console.warn(`The Web Worker Extension Host did not start in 60s, that might be a problem.`);
 		}, 60000);
 
+		// 监听 worker 发送的消息？ 具体内容？
 		this._register(dom.addDisposableListener(mainWindow, 'message', (event) => {
 			if (event.source !== iframe.contentWindow) {
 				return;
@@ -181,20 +184,26 @@ export class WebWorkerExtensionHost extends Disposable implements IExtensionHost
 				err.stack = stack;
 				return rejectBarrier(ExtensionHostExitCode.UnexpectedError, err);
 			}
+			// Web Worker 将 MessageChannel 的一个端口发送过来，后续 Worker 可以与扩展宿主进程直接通信。
+			// TODO: 所以所有的 ExtensionHost 都是在 VS Code 的主进程中运行的，只是人为将 VS Code 中的模块划分为 MainProcess 和 ExtensionHost ？
+			// 实际的扩展进程，是在 Worker 中运行的，而非 ExtensionHost
 			const { data } = event.data;
 			if (barrier.isOpen() || !(data instanceof MessagePort)) {
 				console.warn('UNEXPECTED message', event);
 				const err = new Error('UNEXPECTED message');
 				return rejectBarrier(ExtensionHostExitCode.UnexpectedError, err);
 			}
+			// web worker 发送数据过来之后，需要将 protocol 保存下来继续在后续通信
 			resolveBarrier(data);
 		}));
 
+		// 插入一个 iframe dom, 加载一个 web worker 来做扩展进程的执行环境
 		this._layoutService.mainContainer.appendChild(iframe);
 		this._register(toDisposable(() => iframe.remove()));
 
-		// await MessagePort and use it to directly communicate
-		// with the worker extension host
+		// 等待 MessagePort 并使用它直接与工作人员扩展主机通信
+		// await MessagePort and use it to directly communicate with the worker extension host
+		// 会一直等待 iframe 发送消息，直到 ExtensionHost 初始化完毕？？？
 		await barrier.wait();
 
 		if (barrierHasError) {
@@ -203,6 +212,7 @@ export class WebWorkerExtensionHost extends Disposable implements IExtensionHost
 
 		// Send over message ports for extension API
 		const messagePorts = this._environmentService.options?.messagePorts ?? new Map();
+		// InitMessage, 初始化扩展进程。
 		iframe.contentWindow!.postMessage({ type: 'vscode.init', data: messagePorts }, '*', [...messagePorts.values()]);
 
 		port.onmessage = (event) => {
@@ -223,6 +233,7 @@ export class WebWorkerExtensionHost extends Disposable implements IExtensionHost
 			}
 		};
 
+		// 执行握手操作
 		return this._performHandshake(protocol);
 	}
 

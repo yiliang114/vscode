@@ -294,10 +294,13 @@ export class ExplorerView extends ViewPane implements IExplorerView {
 		super.renderBody(container);
 
 		this.container = container;
+		// 资源管理器树的 DOM 容器
 		this.treeContainer = DOM.append(container, DOM.$('.explorer-folders-view'));
 
+		// 创建 WorkbenchCompressibleAsyncDataTree 实例
 		this.createTree(this.treeContainer);
 
+		// 格式化 label ?
 		this._register(this.labelService.onDidChangeFormatters(() => {
 			this._onDidChangeTitleArea.fire();
 		}));
@@ -305,6 +308,7 @@ export class ExplorerView extends ViewPane implements IExplorerView {
 		// Update configuration
 		this.onConfigurationUpdated(undefined);
 
+		// 激活编辑器修改时，选择激活的文件
 		// When the explorer viewer is loaded, listen to changes to the editor input
 		this._register(this.editorService.onDidActiveEditorChange(() => {
 			this.selectActiveFile();
@@ -416,6 +420,7 @@ export class ExplorerView extends ViewPane implements IExplorerView {
 		this._register(explorerLabels);
 
 		const updateWidth = (stat: ExplorerItem) => this.tree.updateWidth(stat);
+		// 每一项都是通过一个 renderer 渲染出来的。
 		this.renderer = this.instantiationService.createInstance(FilesRenderer, container, explorerLabels, updateWidth);
 		this._register(this.renderer);
 

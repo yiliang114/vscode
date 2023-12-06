@@ -35,6 +35,7 @@ import { SignService } from 'vs/platform/sign/node/signService';
 
 registerSingleton(IExtHostExtensionService, ExtHostExtensionService, InstantiationType.Eager);
 registerSingleton(ILoggerService, ExtHostLoggerService, InstantiationType.Delayed);
+// 特殊的日志服务，与 worker 端有差异
 registerSingleton(ILogService, new SyncDescriptor(ExtHostLogService, [false], true));
 registerSingleton(ISignService, SignService, InstantiationType.Delayed);
 registerSingleton(IExtensionStoragePaths, ExtensionStoragePaths, InstantiationType.Eager);

@@ -114,6 +114,7 @@ export class ExtensionHostManager extends Disposable implements IExtensionHostMa
 		};
 		this._telemetryService.publicLog2<ExtensionHostStartupEvent, ExtensionHostStartupClassification>('extensionHostStartup', startingTelemetryEvent);
 
+		// 扩展 host ？启动之后，透出一个 protocol？
 		this._proxy = this._extensionHost.start().then(
 			(protocol) => {
 				this._hasStarted = true;

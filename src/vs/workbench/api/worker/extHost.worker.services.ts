@@ -17,6 +17,9 @@ import { ExtHostExtensionService } from 'vs/workbench/api/worker/extHostExtensio
 // ###                                                                   ###
 // #########################################################################
 
+// 与 extHost.node.services.ts 相比，少了很多的服务注入。特别是后端服务
+
+// 特殊的日志服务，与 electron 必然有差异
 registerSingleton(ILogService, new SyncDescriptor(ExtHostLogService, [true], true));
-registerSingleton(IExtHostExtensionService, ExtHostExtensionService, InstantiationType.Eager);
+registerSingleton(IExtHostExtensionService, ExtHostExtensionService, InstantiationType.Eager); // Eager 需要的话，立即初始化
 registerSingleton(IExtensionStoragePaths, ExtensionStoragePaths, InstantiationType.Eager);

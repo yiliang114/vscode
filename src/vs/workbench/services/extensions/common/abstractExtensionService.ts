@@ -741,7 +741,9 @@ export abstract class AbstractExtensionService extends Disposable implements IEx
 		}
 	}
 
+	// 创建扩展宿主管理者程序？
 	private _createExtensionHostManager(runningLocation: ExtensionRunningLocation, isInitialStart: boolean, initialActivationEvents: string[]): IExtensionHostManager | null {
+		// 扩展宿主
 		const extensionHost = this._extensionHostFactory.createExtensionHost(this._runningLocations, runningLocation, isInitialStart);
 		if (!extensionHost) {
 			return null;
@@ -860,6 +862,7 @@ export abstract class AbstractExtensionService extends Disposable implements IEx
 		}
 	}
 
+	// 开始创建扩展宿主环境？？？ Host 通常指的是VSCode扩展中的 宿主环境
 	public async startExtensionHosts(): Promise<void> {
 		this._doStopExtensionHosts();
 

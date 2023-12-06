@@ -1058,7 +1058,9 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			},
 			registerFileSystemProvider(scheme, provider, options) {
 				return combinedDisposable(
+					// 扩展进程文件系统注册
 					extHostFileSystem.registerFileSystemProvider(extension, scheme, provider, options),
+					// TODO: 扩展消费者文件系统？ 单纯只是记录了 scheme 对应的 provider
 					extHostConsumerFileSystem.addFileSystemProvider(scheme, provider, options)
 				);
 			},
