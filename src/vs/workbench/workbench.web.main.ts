@@ -91,6 +91,8 @@ import { IDiagnosticsService, NullDiagnosticsService } from 'vs/platform/diagnos
 import { ILanguagePackService } from 'vs/platform/languagePacks/common/languagePacks';
 import { WebLanguagePacksService } from 'vs/platform/languagePacks/browser/languagePacks';
 
+// 理论上说，该文件中只应该存在 import contribution 以及全局单例 Service 的注册。
+// 无论是 contribution 还是 registerSingleton 都是声明式，会在指定的时机再执行，而不是在 import 阶段直接进行初始化。
 registerSingleton(IWorkbenchExtensionManagementService, ExtensionManagementService, InstantiationType.Delayed);
 registerSingleton(IAccessibilityService, AccessibilityService, InstantiationType.Delayed);
 registerSingleton(IContextMenuService, ContextMenuService, InstantiationType.Delayed);

@@ -6,10 +6,11 @@
 import { ExtensionKind } from 'vs/platform/environment/common/environment';
 import { ExtensionIdentifier, IExtensionDescription } from 'vs/platform/extensions/common/extensions';
 
+// 扩展宿主的种类
 export const enum ExtensionHostKind {
-	LocalProcess = 1,
-	LocalWebWorker = 2,
-	Remote = 3
+	LocalProcess = 1, // 运行在 Node 进程中？
+	LocalWebWorker = 2, // 运行在 Web Worker 中
+	Remote = 3 // 运行在远程机器上 (reh)
 }
 
 export function extensionHostKindToString(kind: ExtensionHostKind | null): string {

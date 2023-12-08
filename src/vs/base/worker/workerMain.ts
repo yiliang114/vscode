@@ -15,6 +15,7 @@
 	const monacoEnvironment: IMonacoEnvironment | undefined = (globalThis as any).MonacoEnvironment;
 	const monacoBaseUrl = monacoEnvironment && monacoEnvironment.baseUrl ? monacoEnvironment.baseUrl : '../../../';
 
+	// 主要目的是创建一个安全的策略对象，这样的策略对象可以用来防止跨站脚本攻击。
 	function createTrustedTypesPolicy<Options extends TrustedTypePolicyOptions>(
 		policyName: string,
 		policyOptions?: Options,

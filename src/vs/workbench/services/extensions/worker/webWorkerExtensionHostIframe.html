@@ -73,6 +73,7 @@
 			}
 
 			const worker = new Worker(workerUrl, { name });
+			// worker 的 postMessage 其中一个目的是为了加载静态资源
 			worker.postMessage('vs/workbench/api/worker/extensionHostWorker');
 			const nestedWorkers = new Map();
 
@@ -81,6 +82,7 @@
 
 				if (data?.type === '_newWorker') {
 					const { id, port, url, options } = data;
+					// TODO: 新 Worker？？
 					const newWorker = new Worker(url, options);
 					newWorker.postMessage(port, [port]);
 					newWorker.onerror = console.error.bind(console);
@@ -105,7 +107,7 @@
 				console.error(event.message, event.error);
 				sendError(event.error);
 			};
-
+			// TODO: 接收 iframe 的 postMessage？？？
 			self.onmessage = (event) => {
 				if (event.origin !== parentOrigin) {
 					return;

@@ -168,7 +168,7 @@ export class WebWorkerExtensionHost extends Disposable implements IExtensionHost
 			console.warn(`The Web Worker Extension Host did not start in 60s, that might be a problem.`);
 		}, 60000);
 
-		// 监听 worker 发送的消息？ 具体内容？
+		// 监听 worker 发送的消息？ 具体内容？ window.onMessage 是 vscode 底座的 html 上的事件监听。
 		this._register(dom.addDisposableListener(mainWindow, 'message', (event) => {
 			if (event.source !== iframe.contentWindow) {
 				return;

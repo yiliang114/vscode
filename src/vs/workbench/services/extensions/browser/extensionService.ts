@@ -125,7 +125,7 @@ export class ExtensionService extends AbstractExtensionService implements IExten
 		return null;
 	}
 
-	// 初始化 http/https 形式的文件系统
+	// 初始化 http/https 形式的文件系统。
 	private _initFetchFileSystem(): void {
 		const provider = new FetchFileSystemProvider();
 		this._register(this._fileService.registerProvider(Schemas.http, provider));
@@ -228,7 +228,7 @@ class BrowserExtensionHostFactory implements IExtensionHostFactory {
 		@ILogService private readonly _logService: ILogService,
 	) { }
 
-	// TODO: 对于不同的架构而言（纯 Web/Web + Node)
+	// TODO: 对于不同的架构而言（纯 Web 架构和 Web + Node 架构)
 	createExtensionHost(runningLocations: ExtensionRunningLocationTracker, runningLocation: ExtensionRunningLocation, isInitialStart: boolean): IExtensionHost | null {
 		switch (runningLocation.kind) {
 			case ExtensionHostKind.LocalProcess: {

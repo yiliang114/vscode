@@ -28,6 +28,7 @@ export class FetchFileSystemProvider implements IFileSystemProviderWithFileReadW
 		}
 	}
 
+	// 假定所有文件都存在。假定所有文件都是文件。
 	// fake implementations
 	async stat(_resource: URI): Promise<IStat> {
 		return {
@@ -42,6 +43,7 @@ export class FetchFileSystemProvider implements IFileSystemProviderWithFileReadW
 		return Disposable.None;
 	}
 
+	// 不支持写、删、重命名文件，以及操作文件夹。
 	// error implementations
 	writeFile(_resource: URI, _content: Uint8Array, _opts: IFileWriteOptions): Promise<void> {
 		throw new NotSupportedError();
