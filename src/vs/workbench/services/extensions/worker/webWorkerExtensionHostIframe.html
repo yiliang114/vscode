@@ -19,6 +19,7 @@
 	(async function () {
 		const hostnameValidationMarker = 'v--';
 		const hostname = location.hostname;
+		// TODO: 如果不是以 v-- 开头的，就直接 start 了；否则会有 hash 校验。
 		if (!hostname.startsWith(hostnameValidationMarker)) {
 			// validation not requested
 			return start();
@@ -77,6 +78,7 @@
 			worker.postMessage('vs/workbench/api/worker/extensionHostWorker');
 			const nestedWorkers = new Map();
 
+			// worker 内部发送消息的接收？
 			worker.onmessage = (event) => {
 				const { data } = event;
 
