@@ -243,6 +243,8 @@ class BrowserExtensionHostFactory implements IExtensionHostFactory {
 				// Web 端会通过 Web Worker 作为扩展的宿主环境。 TODO: 我们需要确定，是否是一个扩展，一个宿主环境
 				return this._instantiationService.createInstance(WebWorkerExtensionHost, runningLocation, startup, this._createLocalExtensionHostDataProvider(runningLocations, runningLocation, isInitialStart));
 			}
+			// 目前以我粗鄙的理解，Remote 端的 Extension Host 其实就是 Node（或者可能是其他的技术栈实现的，但是默认是 Node），不然 Node ExtHost 与 Web 之间是无法连接起来的？
+			// TODO: 另外，Remote 这种形式，是不是一定存在两个 ExtHost ？ 因为纯 Web 架构（无 Node）可以运行 Web 端扩展，而 Remote 架构，可以运行 Node + Web 扩展。
 			case ExtensionHostKind.Remote: {
 				// TODO: 远程运行模式，会先看是否能够与远程建立链接，这就是设置中出现的 远程，reh 模式才会有的（remote extHost 模式）
 				const remoteAgentConnection = this._remoteAgentService.getConnection();

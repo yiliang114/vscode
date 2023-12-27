@@ -15,9 +15,12 @@ import { IExtensionHostManager } from 'vs/workbench/services/extensions/common/e
 import { IExtensionManifestPropertiesService } from 'vs/workbench/services/extensions/common/extensionManifestPropertiesService';
 import { ExtensionRunningLocation, LocalProcessRunningLocation, LocalWebWorkerRunningLocation, RemoteRunningLocation } from 'vs/workbench/services/extensions/common/extensionRunningLocation';
 
+// 用于跟踪和管理扩展程序在不同运行位置（如本地进程、远程进程中）的执行情况， 以便在不同环境中高效地运行和管理扩展。
 export class ExtensionRunningLocationTracker {
 
+	// 映射表，存储每个扩展标识符与其运行位置之间的对应关系。
 	private _runningLocation = new ExtensionIdentifierMap<ExtensionRunningLocation | null>();
+	// 分别表示本地进程和本地 Web 工作者的最大亲和力数值。
 	private _maxLocalProcessAffinity: number = 0;
 	private _maxLocalWebWorkerAffinity: number = 0;
 
@@ -42,6 +45,7 @@ export class ExtensionRunningLocationTracker {
 		this._runningLocation.set(extensionId, runningLocation);
 	}
 
+	// 据给定的扩展描述符返回其可执行的扩展种类（例如：本地进程、本地 Web 工作者或远程）。
 	public readExtensionKinds(extensionDescription: IExtensionDescription): ExtensionKind[] {
 		if (extensionDescription.isUnderDevelopment && this._environmentService.extensionDevelopmentKind) {
 			return this._environmentService.extensionDevelopmentKind;
@@ -50,6 +54,7 @@ export class ExtensionRunningLocationTracker {
 		return this._extensionManifestPropertiesService.getExtensionKind(extensionDescription);
 	}
 
+	// 根据给定的扩展标识符 获取其当前的运行位置。是在 Web 还是在 Remote ？
 	public getRunningLocation(extensionId: ExtensionIdentifier): ExtensionRunningLocation | null {
 		return this._runningLocation.get(extensionId) || null;
 	}
@@ -66,6 +71,7 @@ export class ExtensionRunningLocationTracker {
 		return filterExtensionDescriptions(extensions, this._runningLocation, extRunningLocation => extensionHostManager.representsRunningLocation(extRunningLocation));
 	}
 
+	// 计算一组扩展描述符对于指定扩展主机种类的亲和力。该方法首先将输入的扩展分组，并考虑它们之间的依赖关系，然后尝试按照配置的亲和力进行分配。
 	private _computeAffinity(inputExtensions: IExtensionDescription[], extensionHostKind: ExtensionHostKind, isInitialAllocation: boolean): { affinities: ExtensionIdentifierMap<number>; maxAffinity: number } {
 		// Only analyze extensions that can execute
 		const extensions = new ExtensionIdentifierMap<IExtensionDescription>();
@@ -265,6 +271,7 @@ export class ExtensionRunningLocationTracker {
 		return { runningLocation: result, maxLocalProcessAffinity: maxAffinity, maxLocalWebWorkerAffinity: maxLocalWebWorkerAffinity };
 	}
 
+	// 用于初始化一组本地和远程扩展描述符的运行位置。
 	public initializeRunningLocation(localExtensions: IExtensionDescription[], remoteExtensions: IExtensionDescription[]): void {
 		const { runningLocation, maxLocalProcessAffinity, maxLocalWebWorkerAffinity } = this._doComputeRunningLocation(this._runningLocation, localExtensions, remoteExtensions, true);
 		this._runningLocation = runningLocation;
@@ -273,6 +280,9 @@ export class ExtensionRunningLocationTracker {
 	}
 
 	/**
+	 * 用于添加新扩展并移除旧扩展。
+	 *
+	 * 更新 this._runningLocation 以反映这些更改，并返回被移除的扩展的原始运行位置。
 	 * Returns the running locations for the removed extensions.
 	 */
 	public deltaExtensions(toAdd: IExtensionDescription[], toRemove: ExtensionIdentifier[]): ExtensionIdentifierMap<ExtensionRunningLocation | null> {
@@ -291,6 +301,8 @@ export class ExtensionRunningLocationTracker {
 	}
 
 	/**
+	 * 用于更新因启用或安装新扩展而产生的 this._runningLocation
+	 *
 	 * Update `this._runningLocation` with running locations for newly enabled/installed extensions.
 	 */
 	private _updateRunningLocationForAddedExtensions(toAdd: IExtensionDescription[]): void {

@@ -54,7 +54,8 @@ const _bootstrapFnSource = (function _bootstrapFn(workerUrl: string) {
 }).toString();
 
 
-// TODO: 嵌套Worker
+// TODO: 嵌套 Worker
+// 它的主要目的是在 Web Worker 环境中创建一个嵌套的工作线程。
 export class NestedWorker extends EventTarget implements Worker {
 
 	onmessage: ((this: Worker, ev: MessageEvent<any>) => any) | null = null;
@@ -68,10 +69,11 @@ export class NestedWorker extends EventTarget implements Worker {
 		super();
 
 		// create bootstrap script. 创建初始化脚本
-		const bootstrap = `((${_bootstrapFnSource})('${stringOrUrl}'))`;
+		const bootstrap = `((${_bootstrapFnSource})('${stringOrUrl}'))`; // 被加载之后，直接执行的代码。
 		const blob = new Blob([bootstrap], { type: 'application/javascript' });
 		const blobUrl = URL.createObjectURL(blob);
 
+		// 在主工作线程与嵌套工作线程之间通信。
 		const channel = new MessageChannel();
 		const id = blobUrl; // works because blob url is unique, needs ID pool otherwise
 
@@ -82,11 +84,13 @@ export class NestedWorker extends EventTarget implements Worker {
 			url: blobUrl,
 			options,
 		};
+		// 将 port2 发送出去，告诉外部 （应该是 主 workerMain 进程）可以通过这个 port 来跟 _newWorker 进行通信。
 		nativePostMessage(msg, [channel.port2]);
 
 		// worker-impl: functions
 		this.postMessage = channel.port1.postMessage.bind(channel.port1);
 		this.terminate = () => {
+			// 它将发送一个TerminateWorkerMessage消息到父工作线程以终止嵌套工作线程，并释放 Blob URL 和关闭通道端口。
 			const msg: TerminateWorkerMessage = {
 				type: '_terminateWorker',
 				id
@@ -104,6 +108,7 @@ export class NestedWorker extends EventTarget implements Worker {
 				get() {
 					return channel.port1.onmessage;
 				},
+				// 注册 onmessage 事件
 				set(value: MessageEventHandler) {
 					channel.port1.onmessage = value;
 				}
@@ -129,6 +134,7 @@ export class NestedWorker extends EventTarget implements Worker {
 			this.dispatchEvent(msgEvent);
 		});
 
+		// 开始建立通道，后续可接收 postMessage 事件
 		channel.port1.start();
 	}
 }

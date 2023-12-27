@@ -7,6 +7,7 @@
 
 import 'vs/editor/editor.all';
 
+// contribution 都是直接加载，并根据给定的时机，直接执行。
 import 'vs/workbench/api/browser/extensionHost.contribution';
 import 'vs/workbench/browser/workbench.contribution';
 

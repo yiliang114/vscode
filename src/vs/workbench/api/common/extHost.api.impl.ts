@@ -119,6 +119,8 @@ export interface IExtensionApiFactory {
 }
 
 /**
+ * 会分别被 node 和 worker 端调用。需要针对不同平台有不同的实现: 主要也是因为，如果存在 node 端，node 端运行扩展在运行时，也需要对应的 SDK 支持。
+ *
  * This method instantiates and returns the extension API surface
  */
 export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): IExtensionApiFactory {

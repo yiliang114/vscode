@@ -32,16 +32,21 @@ interface INodeModuleFactory extends Partial<IAlternativeModuleProvider> {
 	load(request: string, parent: URI, original: LoadFunction): any;
 }
 
+// 在 Node 和 Worker 也有不同的实现。
+// 用于拦截 Node.js 模块加载行为。该类在构造函数中接收多个依赖项并初始化一些成员变量。它提供了一个 install 方法来安装拦截器，并通过 _installInterceptor 抽象方法实现具体的拦截逻辑。
+// 这个类的主要目的是允许扩展程序自定义模块加载行为（例如使用替代模块或添加额外的功能）。这可以通过向 RequireInterceptor 注册实现 INodeModuleFactory 或 IAlternativeModuleProvider 接口的对象来完成。
 export abstract class RequireInterceptor {
 
+	// 存储已注册模块工厂的映射表。
 	protected readonly _factories: Map<string, INodeModuleFactory>;
+	// 存储可为特定模块提供替代名称的回调数组。
 	protected readonly _alternatives: ((moduleName: string) => string | undefined)[];
 
 	constructor(
-		private _apiFactory: IExtensionApiFactory,
-		private _extensionRegistry: IExtensionRegistries,
+		private _apiFactory: IExtensionApiFactory, // API 工厂
+		private _extensionRegistry: IExtensionRegistries, // 扩展注册表
 		@IInstantiationService private readonly _instaService: IInstantiationService,
-		@IExtHostConfiguration private readonly _extHostConfiguration: IExtHostConfiguration,
+		@IExtHostConfiguration private readonly _extHostConfiguration: IExtHostConfiguration, // 配置服务
 		@IExtHostExtensionService private readonly _extHostExtensionService: IExtHostExtensionService,
 		@IExtHostInitDataService private readonly _initData: IExtHostInitDataService,
 		@ILogService private readonly _logService: ILogService,
@@ -52,13 +57,16 @@ export abstract class RequireInterceptor {
 
 	async install(): Promise<void> {
 
+		// 使用 _installInterceptor 安装拦截器（具体实现由子类提供）
 		this._installInterceptor();
 
+		// 等待配置提供者可用后，获取扩展路径索引。
 		performance.mark('code/extHost/willWaitForConfig');
 		const configProvider = await this._extHostConfiguration.getConfigProvider();
 		performance.mark('code/extHost/didWaitForConfig');
 		const extensionPaths = await this._extHostExtensionService.getExtensionPathIndex();
 
+		// 注册多个模块工厂和/或替代模块提供者。
 		this.register(new VSCodeNodeModuleFactory(this._apiFactory, extensionPaths, this._extensionRegistry, configProvider, this._logService));
 		this.register(this._instaService.createInstance(NodeModuleAliasingModuleFactory));
 		if (this._initData.remote.isRemote) {
@@ -66,8 +74,10 @@ export abstract class RequireInterceptor {
 		}
 	}
 
+	// 抽象方法，子类需要覆盖以实现拦截器的具体逻辑。
 	protected abstract _installInterceptor(): void;
 
+	// 将给定的模块工厂或替代模块提供者注册到 RequireInterceptor 中。根据提供的对象类型，将其添加到相应的集合中以便后续使用。
 	public register(interceptor: INodeModuleFactory | IAlternativeModuleProvider): void {
 		if ('nodeModuleName' in interceptor) {
 			if (Array.isArray(interceptor.nodeModuleName)) {

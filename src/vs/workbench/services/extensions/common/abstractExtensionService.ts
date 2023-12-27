@@ -728,6 +728,7 @@ export abstract class AbstractExtensionService extends Disposable implements IEx
 		for (let affinity = 0; affinity <= this._runningLocations.maxLocalWebWorkerAffinity; affinity++) {
 			locations.push(new LocalWebWorkerRunningLocation(affinity));
 		}
+		
 		locations.push(new RemoteRunningLocation());
 		for (const location of locations) {
 			if (this._getExtensionHostManagerByRunningLocation(location)) {
@@ -749,6 +750,7 @@ export abstract class AbstractExtensionService extends Disposable implements IEx
 			return null;
 		}
 
+		// 扩展主机管理器
 		const processManager: IExtensionHostManager = this._doCreateExtensionHostManager(extensionHost, initialActivationEvents);
 		processManager.onDidExit(([code, signal]) => this._onExtensionHostCrashOrExit(processManager, code, signal));
 		processManager.onDidChangeResponsiveState((responsiveState) => {

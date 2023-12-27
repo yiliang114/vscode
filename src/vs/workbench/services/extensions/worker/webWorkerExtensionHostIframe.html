@@ -73,7 +73,9 @@
 				workerUrl += '?vscode-coi=2'; // COEP
 			}
 
+			// 初始化 web worker 作为扩展运行的环境。 TODO: 突然有疑问，为什么无论是 node 还是 browser 端，都需要使用 new Worker ？？ 初始化？？？
 			const worker = new Worker(workerUrl, { name });
+
 			// worker 的 postMessage 其中一个目的是为了加载静态资源
 			worker.postMessage('vs/workbench/api/worker/extensionHostWorker');
 			const nestedWorkers = new Map();
@@ -98,6 +100,8 @@
 					}
 				} else {
 					worker.onerror = console.error.bind(console);
+					// TODO: 只是干嘛的。。。。
+					// 调用底座的 postMessage
 					window.parent.postMessage({
 						vscodeWebWorkerExtHostId,
 						data

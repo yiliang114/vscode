@@ -15,6 +15,7 @@ import { ExtHostConsoleForwarder } from 'vs/workbench/api/worker/extHostConsoleF
 
 class WorkerRequireInterceptor extends RequireInterceptor {
 
+	// Worker 中不做任何事？？？
 	protected _installInterceptor() { }
 
 	getModule(request: string, parent: URI): undefined | any {
@@ -33,6 +34,9 @@ class WorkerRequireInterceptor extends RequireInterceptor {
 	}
 }
 
+// 扩展宿主服务: 运行扩展代码的环境，是一个独立的进程。
+// 在 VSCode 的设计中，为了保持编辑器界面（UI）的响应性，它将扩展的执行和用户界面分开处理。扩展不直接在主 UI 进程中运行，而是在一个分离的 Extension Host 进程中执行。这样，即使某些扩展代码执行缓慢或者出现问题，也不会直接影响到编辑器的响应性或稳定性。
+// 当你安装了新的扩展，VSCode 会在 Extension Host 进程中加载并运行这些扩展。该进程通过 IPC（Inter-Process Communication，进程间通信）与主 UI 进程通信，以实现诸如编辑器命令、事件监听等功能。
 export class ExtHostExtensionService extends AbstractExtHostExtensionService {
 	readonly extensionRuntime = ExtensionRuntime.Webworker;
 

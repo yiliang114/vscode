@@ -39,6 +39,12 @@ export interface IWebWorkerExtensionHostDataProvider {
 	getInitData(): Promise<IWebWorkerExtensionHostInitData>;
 }
 
+// 这里的架构是比较复杂的：
+// 1. 底座中会有一个 extHost 与 mainThread 对应
+// 2. extHost 会加载 webWorkerExtensionHostIframe.html iframe
+// 3. webWorkerExtensionHostIframe.html 中会初始化一个 Worker: workerMain.js 用于加载扩展环境？？
+// 4. iframe 会与底座直接通信； worker 会与 iframe 直接通信；iframe 是作为中间隔离的部分。
+// 5. 此时的 workerMain.js 是一个主 Worker, 仅仅是用于扩展加载？？？ （TODO: 待验证）真正的工作会再初始化很多 _newWorker 来工作？？？
 export class WebWorkerExtensionHost extends Disposable implements IExtensionHost {
 
 	public readonly pid = null;
@@ -168,7 +174,8 @@ export class WebWorkerExtensionHost extends Disposable implements IExtensionHost
 			console.warn(`The Web Worker Extension Host did not start in 60s, that might be a problem.`);
 		}, 60000);
 
-		// 监听 worker 发送的消息？ 具体内容？ window.onMessage 是 vscode 底座的 html 上的事件监听。
+		//  window.onMessage 是 vscode 底座的 html 上的事件监听。监听 iframe 发送的消息。
+		// 具体内容？
 		this._register(dom.addDisposableListener(mainWindow, 'message', (event) => {
 			if (event.source !== iframe.contentWindow) {
 				return;

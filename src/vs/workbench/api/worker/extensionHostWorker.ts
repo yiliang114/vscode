@@ -262,11 +262,12 @@ function isInitMessage(a: any): a is IInitMessage {
 // 由浏览器端，通过 Web Worker 实现的扩展宿主进程
 export function create(): { onmessage: (message: any) => void } {
 	performance.mark(`code/extHost/willConnectToRenderer`);
-	// 初始化 worker，最重要的事： 1. 建立好 worker 与 iframe 之间的通信通道 2. ....
+	// 初始化 worker，最重要的事：
+	// 1. 建立好 worker 与 iframe 之间的通信通道
+	// 2. ....
 	const res = new ExtensionWorker();
 
 	return {
-		//
 		onmessage(message: any) {
 			if (!isInitMessage(message)) {
 				return; // silently ignore foreign messages
@@ -274,7 +275,9 @@ export function create(): { onmessage: (message: any) => void } {
 
 			connectToRenderer(res.protocol).then(data => {
 				performance.mark(`code/extHost/didWaitForInitData`);
-				// 扩展进程初始化
+
+				// TODO: 实际上，我们所说的扩展进程、扩展进程一直说的是“宿主”，是包含扩展进程运行环境的。
+				// 扩展宿主进程初始化
 				const extHostMain = new ExtensionHostMain(
 					data.protocol, // TODO: 由 MessageChannel 双边通信协议封装的一个对象，包含 send 和 onMessage 函数。
 					data.initData,
@@ -283,6 +286,7 @@ export function create(): { onmessage: (message: any) => void } {
 					message.data
 				);
 
+				// 注册 worker 环境下 fetch 和 ajax 事件的拦截器，主要是给 uri 携带上浏览器前缀？？？
 				patchFetching(uri => extHostMain.asBrowserUri(uri));
 
 				// 终止事件

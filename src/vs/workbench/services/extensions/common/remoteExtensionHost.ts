@@ -43,6 +43,7 @@ export interface IRemoteExtensionHostDataProvider {
 	getInitData(): Promise<IRemoteExtensionHostInitData>;
 }
 
+// VSCode 的 Remote Development 功能允许你通过 SSH、WSL（Windows Subsystem for Linux）或容器（如 Docker）连接到远程环境。在这种模式下，“remote host”指的是远程服务器上运行的服务，这个服务与本地的 VSCode 实例通信以提供文件系统访问、扩展运行等能力。
 export class RemoteExtensionHost extends Disposable implements IExtensionHost {
 
 	public readonly pid = null;
