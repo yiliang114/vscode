@@ -107,6 +107,7 @@ export class ExtHostDocumentsAndEditors implements ExtHostDocumentsAndEditorsSha
 						data.isDirty,
 						data.notebook
 					));
+					// Reference => ExtHostDocumentData => vscode.TextDocument
 					this._documents.set(resource, ref);
 					addedDocuments.push(ref.value);
 				}
@@ -142,6 +143,7 @@ export class ExtHostDocumentsAndEditors implements ExtHostDocumentsAndEditorsSha
 					data.visibleRanges.map(range => typeConverters.Range.to(range)),
 					typeof data.editorPosition === 'number' ? typeConverters.ViewColumn.to(data.editorPosition) : undefined
 				);
+				// ExtHostTextEditor => vscode.TextEditor
 				this._editors.set(data.id, editor);
 			}
 		}

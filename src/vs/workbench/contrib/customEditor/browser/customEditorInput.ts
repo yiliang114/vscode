@@ -249,6 +249,7 @@ export class CustomEditorInput extends LazilyResolvedWebviewEditorInput {
 			&& isEqual(this.resource, other.resource));
 	}
 
+	// 类似 SplitEditorRight 之类的 Command 触发分屏时，调用。 如果有 EditorInput 集成该 CustomEditorInput 需要注意 copy 函数的实现。
 	public override copy(): EditorInput {
 		return CustomEditorInput.create(this.instantiationService, this.resource, this.viewType, this.group, this.webview.options);
 	}
