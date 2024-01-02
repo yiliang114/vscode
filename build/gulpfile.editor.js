@@ -64,6 +64,7 @@ const BUNDLED_FILE_HEADER = [
 
 const languages = i18n.defaultLanguages.concat([]);  // i18n.defaultLanguages.concat(process.env.VSCODE_QUALITY !== 'stable' ? i18n.extraLanguages : []);
 
+// 此处的 task.define 并不是 gulp 声明任务，而只是单纯因为 gulp 任务运行需要很多额外的属性，例如 displayName 等，task.define 就是对 Task 实例属性做了一层包装
 const extractEditorSrcTask = task.define('extract-editor-src', () => {
 	const apiusages = monacoapi.execute().usageContent;
 	const extrausages = fs.readFileSync(path.join(root, 'build', 'monaco', 'monaco.usage.recipe')).toString();
@@ -386,6 +387,7 @@ const finalEditorResourcesTask = task.define('final-editor-resources', () => {
 	);
 });
 
+// TODO: 从 vscode 源码中提取 editor 代码？
 gulp.task('extract-editor-src',
 	task.series(
 		util.rimraf('out-editor-src'),
@@ -393,6 +395,7 @@ gulp.task('extract-editor-src',
 	)
 );
 
+// monaco 编辑器发行版构建？
 gulp.task('editor-distro',
 	task.series(
 		task.parallel(
@@ -420,6 +423,7 @@ gulp.task('editor-distro',
 	)
 );
 
+// 构建 monaco esm 核心任务
 gulp.task('editor-esm',
 	task.series(
 		task.parallel(
@@ -434,6 +438,7 @@ gulp.task('editor-esm',
 	)
 );
 
+// 构建 monaco d.ts 类型核心任务
 gulp.task('monacodts', task.define('monacodts', () => {
 	const result = monacoapi.execute();
 	fs.writeFileSync(result.filePath, result.content);
@@ -493,6 +498,7 @@ function createTscCompileTask(watch) {
 	};
 }
 
+// 类型、产物的 check 任务
 const monacoTypecheckWatchTask = task.define('monaco-typecheck-watch', createTscCompileTask(true));
 exports.monacoTypecheckWatchTask = monacoTypecheckWatchTask;
 

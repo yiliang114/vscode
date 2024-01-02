@@ -211,6 +211,7 @@ export class ItemRenderer implements IListRenderer<CompletionItem, ISuggestionTe
 		}
 
 		data.iconLabel.setLabel(element.textLabel, undefined, labelOptions);
+		// 这部分比较隐晦，在 monaco 文档中也没有说明： 如果返回的 suggestion 的 label 属性是 string 则右侧 detail 部分的文本是不显示的；如果 label 属性是 CompletionItemLabel 则会显示。
 		if (typeof completion.label === 'string') {
 			data.parametersLabel.textContent = '';
 			data.detailsLabel.textContent = stripNewLines(completion.detail || '');

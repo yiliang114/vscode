@@ -191,6 +191,7 @@ suite('Grid', function () {
 	});
 
 	test('another simple layout with split size distribution', function () {
+		//
 		const view1 = store.add(new TestView(50, Number.MAX_VALUE, 50, Number.MAX_VALUE));
 		const grid = store.add(new Grid(view1));
 		container.appendChild(grid.element);
@@ -725,11 +726,15 @@ suite('SerializableGrid', function () {
 	});
 
 	test('serialize empty', function () {
+		// View 包含最大宽度、最小宽度、最大高度、最小高度的块
 		const view1 = store.add(new TestSerializableView('view1', 50, Number.MAX_VALUE, 50, Number.MAX_VALUE));
+		// TODO: 以 View 实例为参数的 Grid? 为最基础的 View？ 后续所有的 child view 都是在它的基础之上？
 		const grid = store.add(new SerializableGrid(view1));
 		container.appendChild(grid.element);
+		// grid/base view 的宽度、高度初始化
 		grid.layout(800, 600);
 
+		// 将视图序列化为 JSON
 		const actual = grid.serialize();
 		assert.deepStrictEqual(actual, {
 			orientation: 0,
@@ -757,6 +762,7 @@ suite('SerializableGrid', function () {
 		container.appendChild(grid.element);
 		grid.layout(800, 600);
 
+		// 一个一个视图往 grid 上添加
 		const view2 = store.add(new TestSerializableView('view2', 50, Number.MAX_VALUE, 50, Number.MAX_VALUE));
 		grid.addView(view2, 200, view1, Direction.Up);
 
@@ -770,9 +776,10 @@ suite('SerializableGrid', function () {
 		grid.addView(view5, 100, view1, Direction.Down);
 
 		assert.deepStrictEqual(grid.serialize(), {
-			orientation: 0,
-			width: 800,
-			height: 600,
+			orientation: 0, // 由初始化 grid 的 view 决定
+			width: 800, // grid 宽度
+			height: 600, // grid 高度
+			// view1 基础
 			root: {
 				type: 'branch',
 				data: [
@@ -815,6 +822,7 @@ suite('SerializableGrid', function () {
 		grid.dispose();
 
 		const deserializer = new TestViewDeserializer(store);
+		// 测试从序列化的 json 文件中恢复视图
 		const grid2 = store.add(SerializableGrid.deserialize(json, deserializer));
 		grid2.layout(800, 600);
 
