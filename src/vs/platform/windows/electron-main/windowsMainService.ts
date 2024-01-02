@@ -1458,7 +1458,6 @@ export class WindowsMainService extends Disposable implements IWindowsMainServic
 			isInitialStartup: options.initialStartup,
 			perfMarks: getMarks(),
 			os: { release: release(), hostname: hostname(), arch: arch() },
-			zoomLevel: typeof windowConfig?.zoomLevel === 'number' ? windowConfig.zoomLevel : undefined,
 
 			autoDetectHighContrast: windowConfig?.autoDetectHighContrast ?? true,
 			autoDetectColorScheme: windowConfig?.autoDetectColorScheme ?? false,
