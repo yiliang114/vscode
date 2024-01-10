@@ -38,7 +38,7 @@ export class Component extends Themable {
 	protected getMemento(scope: StorageScope, target: StorageTarget): MementoObject {
 		return this.memento.getMemento(scope, target);
 	}
-
+	
 	protected saveState(): void {
 		// Subclasses to implement for storing state
 	}
