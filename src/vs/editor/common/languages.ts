@@ -749,6 +749,7 @@ export interface CodeAction {
 	isPreferred?: boolean;
 	isAI?: boolean;
 	disabled?: string;
+	ranges?: IRange[];
 }
 
 export const enum CodeActionTriggerType {
@@ -1775,6 +1776,12 @@ export interface CommentingRanges {
 	readonly resource: URI;
 	ranges: IRange[];
 	fileComments: boolean;
+}
+
+export interface CommentAuthorInformation {
+	name: string;
+	iconPath?: UriComponents;
+
 }
 
 /**
