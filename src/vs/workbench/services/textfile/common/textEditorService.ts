@@ -88,6 +88,7 @@ export class TextEditorService extends Disposable implements ITextEditorService 
 			},
 			{},
 			{
+				// 打开一个文件时，执行。默认行为
 				createEditorInput: editor => ({ editor: this.createTextEditor(editor) }),
 				createUntitledEditorInput: untitledEditor => ({ editor: this.createTextEditor(untitledEditor) }),
 				createDiffEditorInput: diffEditor => ({ editor: this.createTextEditor(diffEditor) })

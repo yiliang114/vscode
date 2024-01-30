@@ -31,6 +31,7 @@ export class FileEditorInputSerializer implements IEditorSerializer {
 		return true;
 	}
 
+	// 编辑器 tab 时，会执行。
 	serialize(editorInput: EditorInput): string {
 		const fileEditorInput = editorInput as FileEditorInput;
 		const resource = fileEditorInput.resource;
@@ -47,6 +48,7 @@ export class FileEditorInputSerializer implements IEditorSerializer {
 		return JSON.stringify(serializedFileEditorInput);
 	}
 
+	// 已打开的 Tab 恢复时，执行。
 	deserialize(instantiationService: IInstantiationService, serializedEditorInput: string): FileEditorInput {
 		return instantiationService.invokeFunction(accessor => {
 			const serializedFileEditorInput: ISerializedFileEditorInput = JSON.parse(serializedEditorInput);
