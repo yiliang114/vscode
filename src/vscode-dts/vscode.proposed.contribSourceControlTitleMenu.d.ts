@@ -3,10 +3,5 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-let y = 0;
-let z = 1;
-hello();
-
-function hello() {
-	console.log('hello');
-}
+// empty placeholder declaration for the `scm/sourceControl/title`-menu contribution point
+// https://github.com/microsoft/vscode/issues/203511
