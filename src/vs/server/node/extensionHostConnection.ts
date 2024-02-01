@@ -290,7 +290,7 @@ export class ExtensionHostConnection {
 
 			if (extHostNamedPipeServer) {
 				extHostNamedPipeServer.on('connection', (socket) => {
-					extHostNamedPipeServer!.close();
+					extHostNamedPipeServer.close();
 					this._pipeSockets(socket, this._connectionData!);
 				});
 			} else {
