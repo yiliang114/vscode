@@ -140,12 +140,14 @@ export const enum PosixShellType {
 	Csh = 'csh',
 	Ksh = 'ksh',
 	Zsh = 'zsh',
+	Python = 'python'
 }
 export const enum WindowsShellType {
 	CommandPrompt = 'cmd',
 	PowerShell = 'pwsh',
 	Wsl = 'wsl',
-	GitBash = 'gitbash'
+	GitBash = 'gitbash',
+	Python = 'python'
 }
 export type TerminalShellType = PosixShellType | WindowsShellType;
 
@@ -425,7 +427,7 @@ export enum HeartbeatConstants {
 	BeatInterval = 5000,
 	/**
 	 * The duration of the first heartbeat while the pty host is starting up. This is much larger
-	 * than the regular BeatInterval to accomodate slow machines, we still want to warn about the
+	 * than the regular BeatInterval to accommodate slow machines, we still want to warn about the
 	 * pty host's unresponsiveness eventually though.
 	 */
 	ConnectingBeatInterval = 20000,

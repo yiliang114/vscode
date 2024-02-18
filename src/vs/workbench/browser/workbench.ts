@@ -43,6 +43,8 @@ import { IHostService } from 'vs/workbench/services/host/browser/host';
 import { IDialogService } from 'vs/platform/dialogs/common/dialogs';
 import { mainWindow } from 'vs/base/browser/window';
 import { PixelRatio } from 'vs/base/browser/pixelRatio';
+import { WorkbenchHoverDelegate } from 'vs/platform/hover/browser/hover';
+import { setHoverDelegateFactory } from 'vs/base/browser/ui/hover/hoverDelegate';
 
 export interface IWorkbenchOptions {
 
