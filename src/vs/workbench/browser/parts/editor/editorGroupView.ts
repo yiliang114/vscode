@@ -546,6 +546,9 @@ export class EditorGroupView extends Themable implements IEditorGroupView {
 
 		// Visibility
 		this._register(this.groupsView.onDidVisibilityChange(e => this.onDidVisibilityChange(e)));
+
+		// Focus
+		this._register(this.onDidFocus(() => this.onDidGainFocus()));
 	}
 
 	private onDidGroupModelChange(e: IGroupModelChangeEvent): void {
@@ -579,6 +582,9 @@ export class EditorGroupView extends Themable implements IEditorGroupView {
 				break;
 			case GroupModelChangeKind.EDITOR_DIRTY:
 				this.onDidChangeEditorDirty(e.editor);
+				break;
+			case GroupModelChangeKind.EDITOR_TRANSIENT:
+				this.onDidChangeEditorTransient(e.editor);
 				break;
 			case GroupModelChangeKind.EDITOR_LABEL:
 				this.onDidChangeEditorLabel(e.editor);
@@ -764,6 +770,17 @@ export class EditorGroupView extends Themable implements IEditorGroupView {
 		this.titleControl.updateEditorDirty(editor);
 	}
 
+	private onDidChangeEditorTransient(editor: EditorInput): void {
+		const transient = this.model.isTransient(editor);
+
+		// Transient state overrides the `enablePreview` setting,
+		// so when an editor leaves the transient state, we have
+		// to ensure its preview state is also cleared.
+		if (!transient && !this.groupsView.partOptions.enablePreview) {
+			this.pinEditor(editor);
+		}
+	}
+
 	private onDidChangeEditorLabel(editor: EditorInput): void {
 
 		// Forward to title control
@@ -774,6 +791,18 @@ export class EditorGroupView extends Themable implements IEditorGroupView {
 
 		// Forward to active editor pane
 		this.editorPane.setVisible(visible);
+	}
+
+	private onDidGainFocus(): void {
+		if (this.activeEditor) {
+
+			// We aggressively clear the transient state of editors
+			// as soon as the group gains focus. This is to ensure
+			// that the transient state is not staying around when
+			// the user interacts with the editor.
+
+			this.setTransient(this.activeEditor, false);
+		}
 	}
 
 	//#endregion
@@ -886,6 +915,10 @@ export class EditorGroupView extends Themable implements IEditorGroupView {
 
 	isSticky(editorOrIndex: EditorInput | number): boolean {
 		return this.model.isSticky(editorOrIndex);
+	}
+
+	isTransient(editorOrIndex: EditorInput | number): boolean {
+		return this.model.isTransient(editorOrIndex);
 	}
 
 	isActive(editor: EditorInput | IUntypedEditorInput): boolean {
@@ -1006,6 +1039,13 @@ export class EditorGroupView extends Themable implements IEditorGroupView {
 		}
 	}
 
+	setTransient(candidate: EditorInput | undefined, transient: boolean): void {
+		const editor = candidate ?? this.activeEditor;
+		if (editor) {
+			this.model.setTransient(editor, transient);
+		}
+	}
+
 	//#endregion
 
 	//#region openEditor()
@@ -1035,7 +1075,7 @@ export class EditorGroupView extends Themable implements IEditorGroupView {
 
 		// Determine options
 		const pinned = options?.sticky
-			|| !this.groupsView.partOptions.enablePreview
+			|| (!this.groupsView.partOptions.enablePreview && !options?.transient)
 			|| editor.isDirty()
 			|| (options?.pinned ?? typeof options?.index === 'number' /* unless specified, prefer to pin when opening with index */)
 			|| (typeof options?.index === 'number' && this.model.isSticky(options.index))
@@ -1044,6 +1084,7 @@ export class EditorGroupView extends Themable implements IEditorGroupView {
 			index: options ? options.index : undefined,
 			pinned,
 			sticky: options?.sticky || (typeof options?.index === 'number' && this.model.isSticky(options.index)),
+			transient: !!options?.transient,
 			active: this.count === 0 || !options || !options.inactive,
 			supportSideBySide: internalOptions?.supportSideBySide
 		};

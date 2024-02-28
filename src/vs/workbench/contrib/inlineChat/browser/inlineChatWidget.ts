@@ -19,9 +19,10 @@ import 'vs/css!./inlineChat';
 import { IEditorConstructionOptions } from 'vs/editor/browser/config/editorConfiguration';
 import { IActiveCodeEditor, ICodeEditor, IDiffEditorConstructionOptions } from 'vs/editor/browser/editorBrowser';
 import { EditorExtensionsRegistry } from 'vs/editor/browser/editorExtensions';
-import { ICodeEditorWidgetOptions } from 'vs/editor/browser/widget/codeEditorWidget';
+import { ICodeEditorWidgetOptions } from 'vs/editor/browser/widget/codeEditor/codeEditorWidget';
 import { AccessibleDiffViewer, IAccessibleDiffViewerModel } from 'vs/editor/browser/widget/diffEditor/components/accessibleDiffViewer';
-import { EmbeddedCodeEditorWidget, EmbeddedDiffEditorWidget } from 'vs/editor/browser/widget/embeddedCodeEditorWidget';
+import { EmbeddedDiffEditorWidget } from 'vs/editor/browser/widget/diffEditor/embeddedDiffEditorWidget';
+import { EmbeddedCodeEditorWidget } from 'vs/editor/browser/widget/codeEditor/embeddedCodeEditorWidget';
 import { EditorLayoutInfo, EditorOption, IComputedEditorOptions } from 'vs/editor/common/config/editorOptions';
 import { LineRange } from 'vs/editor/common/core/lineRange';
 import { Position } from 'vs/editor/common/core/position';
@@ -61,10 +62,12 @@ import { SlashCommandContentWidget } from 'vs/workbench/contrib/chat/browser/cha
 import { IChatAgentService } from 'vs/workbench/contrib/chat/common/chatAgents';
 import { ChatModel, ChatResponseModel } from 'vs/workbench/contrib/chat/common/chatModel';
 import { ChatResponseViewModel } from 'vs/workbench/contrib/chat/common/chatViewModel';
+import { CodeBlockModelCollection } from 'vs/workbench/contrib/chat/common/codeBlockModelCollection';
 import { ExpansionState, HunkData, HunkInformation, Session } from 'vs/workbench/contrib/inlineChat/browser/inlineChatSession';
 import { asRange, invertLineRange } from 'vs/workbench/contrib/inlineChat/browser/utils';
 import { ACTION_ACCEPT_CHANGES, ACTION_REGENERATE_RESPONSE, ACTION_VIEW_IN_CHAT, CTX_INLINE_CHAT_EMPTY, CTX_INLINE_CHAT_FOCUSED, CTX_INLINE_CHAT_INNER_CURSOR_END, CTX_INLINE_CHAT_INNER_CURSOR_FIRST, CTX_INLINE_CHAT_INNER_CURSOR_LAST, CTX_INLINE_CHAT_INNER_CURSOR_START, CTX_INLINE_CHAT_MESSAGE_CROP_STATE, CTX_INLINE_CHAT_OUTER_CURSOR_POSITION, CTX_INLINE_CHAT_RESPONSE_FOCUSED, CTX_INLINE_CHAT_VISIBLE, IInlineChatFollowup, IInlineChatSlashCommand, MENU_INLINE_CHAT_INPUT, MENU_INLINE_CHAT_WIDGET, MENU_INLINE_CHAT_WIDGET_FEEDBACK, MENU_INLINE_CHAT_WIDGET_MARKDOWN_MESSAGE, MENU_INLINE_CHAT_WIDGET_STATUS } from 'vs/workbench/contrib/inlineChat/common/inlineChat';
 import { IUntitledTextEditorModel } from 'vs/workbench/services/untitled/common/untitledTextEditorModel';
+import { createInstantHoverDelegate } from 'vs/base/browser/ui/hover/hoverDelegateFactory';
 
 const defaultAriaLabel = localize('aria-label', "Inline Chat Input");
 
@@ -238,6 +241,7 @@ export class InlineChatWidget {
 	private _slashCommandUsedDisposables = this._store.add(new DisposableStore());
 
 	private _chatMessage: MarkdownString | undefined;
+	private readonly _codeBlockModelCollection: CodeBlockModelCollection;
 
 	constructor(
 		private readonly parentEditor: ICodeEditor,
@@ -372,12 +376,16 @@ export class InlineChatWidget {
 		this._slashCommandContentWidget = new SlashCommandContentWidget(this._inputEditor);
 		this._store.add(this._slashCommandContentWidget);
 
+		// Share hover delegates between toolbars to support instant hover between both
+		const hoverDelegate = this._store.add(createInstantHoverDelegate());
+
 		// toolbars
 
 		this._store.add(this._instantiationService.createInstance(MenuWorkbenchToolBar, this._elements.editorToolbar, _options.menuId, {
 			telemetrySource: 'interactiveEditorWidget-toolbar',
 			toolbarOptions: { primaryGroup: 'main' },
-			hiddenItemStrategy: HiddenItemStrategy.Ignore // keep it lean when hiding items and avoid a "..." overflow menu
+			hiddenItemStrategy: HiddenItemStrategy.Ignore, // keep it lean when hiding items and avoid a "..." overflow menu
+			hoverDelegate
 		}));
 
 		this._progressBar = new ProgressBar(this._elements.progress);
@@ -386,7 +394,8 @@ export class InlineChatWidget {
 
 		this._store.add(this._instantiationService.createInstance(MenuWorkbenchToolBar, this._elements.widgetToolbar, _options.widgetMenuId, {
 			telemetrySource: 'interactiveEditorWidget-toolbar',
-			toolbarOptions: { primaryGroup: 'main' }
+			toolbarOptions: { primaryGroup: 'main' },
+			hoverDelegate
 		}));
 
 		const workbenchMenubarOptions: IWorkbenchButtonBarOptions = {
@@ -444,6 +453,9 @@ export class InlineChatWidget {
 				this._elements.followUps.ariaLabel = this._accessibleViewService.getOpenAriaHint(AccessibilityVerbositySettingId.InlineChat);
 			}
 		}));
+
+		// Code block rendering
+		this._codeBlockModelCollection = this._store.add(this._instantiationService.createInstance(CodeBlockModelCollection));
 	}
 
 
@@ -608,7 +620,7 @@ export class InlineChatWidget {
 			const viewModel = this._chatMessageDisposables.add(new ChatResponseViewModel(responseModel, this._logService));
 			const renderOptions: IChatListItemRendererOptions = { renderStyle: 'compact', noHeader: true, noPadding: true };
 			const chatRendererDelegate: IChatRendererDelegate = { getListLength() { return 1; } };
-			const renderer = this._chatMessageDisposables.add(this._instantiationService.createInstance(ChatListItemRenderer, this._editorOptions, renderOptions, chatRendererDelegate, undefined));
+			const renderer = this._chatMessageDisposables.add(this._instantiationService.createInstance(ChatListItemRenderer, this._editorOptions, renderOptions, chatRendererDelegate, this._codeBlockModelCollection, undefined));
 			renderer.layout(this._elements.chatMessageContent.clientWidth - 4); // 2 for the padding used for the tab index border
 			this._chatMessageDisposables.add(this._onDidChangeLayout.event(() => {
 				renderer.layout(this._elements.chatMessageContent.clientWidth - 4);

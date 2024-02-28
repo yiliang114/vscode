@@ -16,8 +16,8 @@ import { constObservable, mapObservableArrayCached } from 'vs/base/common/observ
 import { ThemeIcon } from 'vs/base/common/themables';
 import { isDefined, isObject } from 'vs/base/common/types';
 import { URI } from 'vs/base/common/uri';
-import { ConstLazyPromise, IDocumentDiffItem, IMultiDiffEditorModel, LazyPromise } from 'vs/editor/browser/widget/multiDiffEditorWidget/model';
-import { MultiDiffEditorViewModel } from 'vs/editor/browser/widget/multiDiffEditorWidget/multiDiffEditorViewModel';
+import { ConstLazyPromise, IDocumentDiffItem, IMultiDiffEditorModel, LazyPromise } from 'vs/editor/browser/widget/multiDiffEditor/model';
+import { MultiDiffEditorViewModel } from 'vs/editor/browser/widget/multiDiffEditor/multiDiffEditorViewModel';
 import { IDiffEditorOptions } from 'vs/editor/common/config/editorOptions';
 import { IResolvedTextEditorModel, ITextModelService } from 'vs/editor/common/services/resolverService';
 import { ITextResourceConfigurationService } from 'vs/editor/common/services/textResourceConfiguration';
@@ -48,6 +48,7 @@ export class MultiDiffEditorInput extends EditorInput implements ILanguageSuppor
 					resource.modified.resource,
 				);
 			}),
+			input.isTransient ?? false
 		);
 	}
 
@@ -59,7 +60,8 @@ export class MultiDiffEditorInput extends EditorInput implements ILanguageSuppor
 			data.resources?.map(resource => new MultiDiffEditorItem(
 				resource.originalUri ? URI.parse(resource.originalUri) : undefined,
 				resource.modifiedUri ? URI.parse(resource.modifiedUri) : undefined,
-			))
+			)),
+			false
 		);
 	}
 
@@ -80,6 +82,7 @@ export class MultiDiffEditorInput extends EditorInput implements ILanguageSuppor
 		public readonly multiDiffSource: URI,
 		public readonly label: string | undefined,
 		public readonly initialResources: readonly MultiDiffEditorItem[] | undefined,
+		public readonly isTransient: boolean = false,
 		@ITextModelService private readonly _textModelService: ITextModelService,
 		@ITextResourceConfigurationService private readonly _textResourceConfigurationService: ITextResourceConfigurationService,
 		@IInstantiationService private readonly _instantiationService: IInstantiationService,
@@ -340,9 +343,9 @@ export class MultiDiffEditorResolverContribution extends Disposable {
 			},
 			{},
 			{
-				createMultiDiffEditorInput: (diffListEditor: IResourceMultiDiffEditorInput): EditorInputWithOptions => {
+				createMultiDiffEditorInput: (multiDiffEditor: IResourceMultiDiffEditorInput): EditorInputWithOptions => {
 					return {
-						editor: MultiDiffEditorInput.fromResourceMultiDiffEditorInput(diffListEditor, instantiationService),
+						editor: MultiDiffEditorInput.fromResourceMultiDiffEditorInput(multiDiffEditor, instantiationService),
 					};
 				},
 			}
@@ -360,11 +363,16 @@ interface ISerializedMultiDiffEditorInput {
 }
 
 export class MultiDiffEditorSerializer implements IEditorSerializer {
-	canSerialize(editor: EditorInput): boolean {
-		return editor instanceof MultiDiffEditorInput;
+
+	canSerialize(editor: EditorInput): editor is MultiDiffEditorInput {
+		return editor instanceof MultiDiffEditorInput && !editor.isTransient;
 	}
 
 	serialize(editor: MultiDiffEditorInput): string | undefined {
+		if (!this.canSerialize(editor)) {
+			return undefined;
+		}
+
 		return JSON.stringify(editor.serialize());
 	}
 

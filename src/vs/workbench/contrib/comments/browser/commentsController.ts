@@ -25,7 +25,7 @@ import { CommentGlyphWidget } from 'vs/workbench/contrib/comments/browser/commen
 import { ICommentInfo, ICommentService } from 'vs/workbench/contrib/comments/browser/commentService';
 import { isMouseUpEventDragFromMouseDown, parseMouseDownInfoFromEvent, ReviewZoneWidget } from 'vs/workbench/contrib/comments/browser/commentThreadZoneWidget';
 import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
-import { EmbeddedCodeEditorWidget } from 'vs/editor/browser/widget/embeddedCodeEditorWidget';
+import { EmbeddedCodeEditorWidget } from 'vs/editor/browser/widget/codeEditor/embeddedCodeEditorWidget';
 import { EditorOption } from 'vs/editor/common/config/editorOptions';
 import { IViewsService } from 'vs/workbench/services/views/common/viewsService';
 import { COMMENTS_VIEW_ID } from 'vs/workbench/contrib/comments/browser/commentsTreeViewer';
@@ -780,6 +780,7 @@ export class CommentController implements IEditorContribution {
 
 	public onModelChanged(): void {
 		this.localToDispose.clear();
+		this.tryUpdateReservedSpace();
 
 		this.removeCommentWidgetsAndStoreCache();
 		if (!this.editor) {
@@ -1194,10 +1195,14 @@ export class CommentController implements IEditorContribution {
 			return;
 		}
 
-		const hasCommentsOrRanges = this._commentInfos.some(info => {
+		const hasCommentsOrRangesInInfo = this._commentInfos.some(info => {
 			const hasRanges = Boolean(info.commentingRanges && (Array.isArray(info.commentingRanges) ? info.commentingRanges : info.commentingRanges.ranges).length);
 			return hasRanges || (info.threads.length > 0);
 		});
+		const uri = this.editor.getModel()?.uri;
+		const resourceHasCommentingRanges = uri ? this.commentService.resourceHasCommentingRanges(uri) : false;
+
+		const hasCommentsOrRanges = hasCommentsOrRangesInInfo || resourceHasCommentingRanges;
 
 		if (hasCommentsOrRanges && !this._commentingRangeSpaceReserved && this.commentService.isCommentingEnabled) {
 			this._commentingRangeSpaceReserved = true;

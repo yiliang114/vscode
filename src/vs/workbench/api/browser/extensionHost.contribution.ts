@@ -19,7 +19,7 @@ import { StatusBarItemsExtensionPoint } from 'vs/workbench/api/browser/statusBar
 // --- mainThread participants 主线程参与者
 import './mainThreadLocalization'; // 本地化主进程
 import './mainThreadBulkEdits'; // 批量编辑
-import './mainThreadChatProvider'; // 聊天
+import './mainThreadLanguageModels'; // 语言模型
 import './mainThreadChatAgents2'; // 聊天 agent ？
 import './mainThreadChatVariables'; // 聊天变量
 import './mainThreadCodeInsets'; // 代码缩进

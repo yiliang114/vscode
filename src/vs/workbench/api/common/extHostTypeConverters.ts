@@ -38,7 +38,7 @@ import { getPrivateApiFor } from 'vs/workbench/api/common/extHostTestingPrivateA
 import { DEFAULT_EDITOR_ASSOCIATION, SaveReason } from 'vs/workbench/common/editor';
 import { IViewBadge } from 'vs/workbench/common/views';
 import { IChatAgentRequest, IChatAgentResult } from 'vs/workbench/contrib/chat/common/chatAgents';
-import * as chatProvider from 'vs/workbench/contrib/chat/common/chatProvider';
+import * as chatProvider from 'vs/workbench/contrib/chat/common/languageModels';
 import { IChatCommandButton, IChatContentInlineReference, IChatContentReference, IChatFollowup, IChatMarkdownContent, IChatProgressMessage, IChatTreeData, IChatUserActionEvent } from 'vs/workbench/contrib/chat/common/chatService';
 import { IChatRequestVariableValue } from 'vs/workbench/contrib/chat/common/chatVariables';
 import { DebugTreeItemCollapsibleState, IDebugVisualizationTreeItem } from 'vs/workbench/contrib/debug/common/debug';
@@ -2239,20 +2239,20 @@ export namespace ChatInlineFollowup {
 
 export namespace LanguageModelMessage {
 
-	export function to(message: chatProvider.IChatMessage): vscode.LanguageModelMessage {
+	export function to(message: chatProvider.IChatMessage): vscode.LanguageModelChatMessage {
 		switch (message.role) {
-			case chatProvider.ChatMessageRole.System: return new types.LanguageModelSystemMessage(message.content);
-			case chatProvider.ChatMessageRole.User: return new types.LanguageModelUserMessage(message.content);
-			case chatProvider.ChatMessageRole.Assistant: return new types.LanguageModelAssistantMessage(message.content);
+			case chatProvider.ChatMessageRole.System: return new types.LanguageModelChatSystemMessage(message.content);
+			case chatProvider.ChatMessageRole.User: return new types.LanguageModelChatUserMessage(message.content);
+			case chatProvider.ChatMessageRole.Assistant: return new types.LanguageModelChatAssistantMessage(message.content);
 		}
 	}
 
-	export function from(message: vscode.LanguageModelMessage): chatProvider.IChatMessage {
-		if (message instanceof types.LanguageModelSystemMessage) {
+	export function from(message: vscode.LanguageModelChatMessage): chatProvider.IChatMessage {
+		if (message instanceof types.LanguageModelChatSystemMessage) {
 			return { role: chatProvider.ChatMessageRole.System, content: message.content };
-		} else if (message instanceof types.LanguageModelUserMessage) {
+		} else if (message instanceof types.LanguageModelChatUserMessage) {
 			return { role: chatProvider.ChatMessageRole.User, content: message.content };
-		} else if (message instanceof types.LanguageModelAssistantMessage) {
+		} else if (message instanceof types.LanguageModelChatAssistantMessage) {
 			return { role: chatProvider.ChatMessageRole.Assistant, content: message.content };
 		} else {
 			throw new Error('Invalid LanguageModelMessage');
