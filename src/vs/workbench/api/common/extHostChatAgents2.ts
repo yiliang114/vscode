@@ -213,7 +213,7 @@ export class ExtHostChatAgents2 implements ExtHostChatAgentsShape2 {
 
 		} catch (e) {
 			this._logService.error(e, agent.extension);
-			return { errorDetails: { message: localize('errorResponse', "Error from provider: {0}", toErrorMessage(e)), responseIsIncomplete: true } };
+			return { errorDetails: { message: localize('errorResponse', "Error from participant: {0}", toErrorMessage(e)), responseIsIncomplete: true } };
 
 		} finally {
 			stream.close();
@@ -245,14 +245,16 @@ export class ExtHostChatAgents2 implements ExtHostChatAgentsShape2 {
 		this._sessionDisposables.deleteAndDispose(sessionId);
 	}
 
-	async $provideFollowups(request: IChatAgentRequest, handle: number, result: IChatAgentResult, token: CancellationToken): Promise<IChatFollowup[]> {
+	async $provideFollowups(request: IChatAgentRequest, handle: number, result: IChatAgentResult, context: { history: IChatAgentHistoryEntryDto[] }, token: CancellationToken): Promise<IChatFollowup[]> {
 		const agent = this._agents.get(handle);
 		if (!agent) {
 			return Promise.resolve([]);
 		}
 
+		const convertedHistory = await this.prepareHistoryTurns(agent.id, context);
+
 		const ehResult = typeConvert.ChatAgentResult.to(result);
-		return (await agent.provideFollowups(ehResult, token))
+		return (await agent.provideFollowups(ehResult, { history: convertedHistory }, token))
 			.filter(f => {
 				// The followup must refer to a participant that exists from the same extension
 				const isValid = !f.participant || Iterable.some(
@@ -351,6 +353,7 @@ class ExtHostChatAgent {
 	private _agentVariableProvider?: { provider: vscode.ChatParticipantCompletionItemProvider; triggerCharacters: string[] };
 	private _welcomeMessageProvider?: vscode.ChatWelcomeMessageProvider | undefined;
 	private _isSticky: boolean | undefined;
+	private _requester: vscode.ChatRequesterInformation | undefined;
 
 	constructor(
 		public readonly extension: IExtensionDescription,
@@ -376,11 +379,12 @@ class ExtHostChatAgent {
 		return await this._agentVariableProvider.provider.provideCompletionItems(query, token) ?? [];
 	}
 
-	async provideFollowups(result: vscode.ChatResult, token: CancellationToken): Promise<vscode.ChatFollowup[]> {
+	async provideFollowups(result: vscode.ChatResult, context: vscode.ChatContext, token: CancellationToken): Promise<vscode.ChatFollowup[]> {
 		if (!this._followupProvider) {
 			return [];
 		}
-		const followups = await this._followupProvider.provideFollowups(result, token);
+
+		const followups = await this._followupProvider.provideFollowups(result, context, token);
 		if (!followups) {
 			return [];
 		}
@@ -433,7 +437,7 @@ class ExtHostChatAgent {
 			updateScheduled = true;
 			queueMicrotask(() => {
 				this._proxy.$updateAgent(this._handle, {
-					description: this._description ?? '',
+					description: this._description,
 					fullName: this._fullName,
 					icon: !this._iconPath ? undefined :
 						this._iconPath instanceof URI ? this._iconPath :
@@ -451,6 +455,7 @@ class ExtHostChatAgent {
 					sampleRequest: this._sampleRequest,
 					supportIssueReporting: this._supportIssueReporting,
 					isSticky: this._isSticky,
+					requester: this._requester
 				});
 				updateScheduled = false;
 			});
@@ -598,6 +603,13 @@ class ExtHostChatAgent {
 			set isSticky(v) {
 				that._isSticky = v;
 				updateMetadataSoon();
+			},
+			set requester(v) {
+				that._requester = v;
+				updateMetadataSoon();
+			},
+			get requester() {
+				return that._requester;
 			},
 			dispose() {
 				disposed = true;

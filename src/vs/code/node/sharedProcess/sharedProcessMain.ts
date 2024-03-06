@@ -520,20 +520,30 @@ export async function main(configuration: ISharedProcessConfiguration): Promise<
 
 	// create shared process and signal back to main that we are
 	// ready to accept message ports as client connections
-	// 创建共享进程并向main发送信号
-	// 准备接受消息端口作为客户端连接
-	const sharedProcess = new SharedProcessMain(configuration);
-	// ipc 准备
-	process.parentPort.postMessage(SharedProcessLifecycle.ipcReady);
 
-	// await initialization and signal this back to electron-main
-	await sharedProcess.init();
+	try {
+		// 创建共享进程并向main发送信号
+		// 准备接受消息端口作为客户端连接
+		const sharedProcess = new SharedProcessMain(configuration);
+		// ipc 准备
+		process.parentPort.postMessage(SharedProcessLifecycle.ipcReady);
 
-	// 发父进程发送消息：初始化完成
-	process.parentPort.postMessage(SharedProcessLifecycle.initDone);
+		// await initialization and signal this back to electron-main
+		await sharedProcess.init();
+
+		// 发父进程发送消息：初始化完成
+		process.parentPort.postMessage(SharedProcessLifecycle.initDone);
+		// parentPort是一个用于与父进程进行通信的特殊端口，会监听从父进程发送的消息
+	} catch (error) {
+		process.parentPort.postMessage({ error: error.toString() });
+	}
 }
 
-// parentPort是一个用于与父进程进行通信的特殊端口，会监听从父进程发送的消息
+const handle = setTimeout(() => {
+	process.parentPort.postMessage({ warning: '[SharedProcess] did not receive configuration within 30s...' });
+}, 30000);
+
 process.parentPort.once('message', (e: Electron.MessageEvent) => {
+	clearTimeout(handle);
 	main(e.data as ISharedProcessConfiguration);
 });
