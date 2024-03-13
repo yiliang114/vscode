@@ -868,9 +868,13 @@ export abstract class AbstractExtensionService extends Disposable implements IEx
 		}
 	}
 
-	// 开始创建扩展宿主环境？？？ Host 通常指的是VSCode扩展中的 宿主环境
-	public async startExtensionHosts(): Promise<void> {
+  // 开始创建扩展宿主环境？？？ Host 通常指的是VSCode扩展中的 宿主环境
+	public async startExtensionHosts(updates?: { toAdd: IExtension[]; toRemove: string[] }): Promise<void> {
 		this._doStopExtensionHosts();
+
+		if (updates) {
+			await this._handleDeltaExtensions(new DeltaExtensionsQueueItem(updates.toAdd, updates.toRemove));
+		}
 
 		const lock = await this._registry.acquireLock('startExtensionHosts');
 		try {
