@@ -732,7 +732,7 @@ export abstract class AbstractExtensionService extends Disposable implements IEx
 		for (let affinity = 0; affinity <= this._runningLocations.maxLocalWebWorkerAffinity; affinity++) {
 			locations.push(new LocalWebWorkerRunningLocation(affinity));
 		}
-		
+
 		locations.push(new RemoteRunningLocation());
 		for (const location of locations) {
 			if (this._getExtensionHostManagerByRunningLocation(location)) {
@@ -868,7 +868,7 @@ export abstract class AbstractExtensionService extends Disposable implements IEx
 		}
 	}
 
-  // 开始创建扩展宿主环境？？？ Host 通常指的是VSCode扩展中的 宿主环境
+	// 开始创建扩展宿主环境？？？ Host 通常指的是VSCode扩展中的 宿主环境
 	public async startExtensionHosts(updates?: { toAdd: IExtension[]; toRemove: string[] }): Promise<void> {
 		this._doStopExtensionHosts();
 

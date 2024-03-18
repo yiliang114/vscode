@@ -36,7 +36,35 @@ class NativeIssueContribution extends BaseIssueContribution {
 		super(productService, configurationService);
 
 		if (productService.reportIssueUrl) {
-			registerAction2(ReportPerformanceIssueUsingReporterAction);
+			this._register(registerAction2(ReportPerformanceIssueUsingReporterAction));
+		}
+
+		let disposable: IDisposable | undefined;
+
+		const registerQuickAccessProvider = () => {
+			disposable = Registry.as<IQuickAccessRegistry>(QuickAccessExtensions.Quickaccess).registerQuickAccessProvider({
+				ctor: IssueQuickAccess,
+				prefix: IssueQuickAccess.PREFIX,
+				contextKey: 'inReportIssuePicker',
+				placeholder: localize('tasksQuickAccessPlaceholder', "Type the name of an extension to report on."),
+				helpEntries: [{
+					description: localize('openIssueReporter', "Open Issue Reporter"),
+					commandId: 'workbench.action.openIssueReporter'
+				}]
+			});
+		};
+
+		this._register(configurationService.onDidChangeConfiguration(e => {
+			if (!configurationService.getValue<boolean>('extensions.experimental.issueQuickAccess') && disposable) {
+				disposable.dispose();
+				disposable = undefined;
+			} else if (!disposable) {
+				registerQuickAccessProvider();
+			}
+		}));
+
+		if (configurationService.getValue<boolean>('extensions.experimental.issueQuickAccess')) {
+			registerQuickAccessProvider();
 		}
 
 		let disposable: IDisposable | undefined;

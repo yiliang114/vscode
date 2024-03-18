@@ -142,7 +142,7 @@ export class Workbench extends Layout {
 		try {
 
 			// Configure emitter leak warning threshold
-			setGlobalLeakWarningThreshold(175);
+			this._register(setGlobalLeakWarningThreshold(175));
 
 			// Services(实例化依赖的服务)
 			const instantiationService = this.initServices(this.serviceCollection);
