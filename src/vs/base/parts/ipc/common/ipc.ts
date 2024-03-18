@@ -877,7 +877,7 @@ export class IPCServer<TContext = string> implements IChannelServer<TContext>, I
 		return result;
 	}
 
-	constructor(onDidClientConnect: Event<ClientConnectionEvent>) {
+	constructor(onDidClientConnect: Event<ClientConnectionEvent>, ipcLogger?: IIPCLogger | null, timeoutDelay?: number) {
 		// 客户端连接上之后
 		this.disposables.add(onDidClientConnect(({ protocol, onDidClientDisconnect }) => {
 			const onFirstMessage = Event.once(protocol.onMessage);
@@ -889,9 +889,9 @@ export class IPCServer<TContext = string> implements IChannelServer<TContext>, I
 				const ctx = deserialize(reader) as TContext;
 
 				// 频道服务端初始化所需： 协议 + （需要初始化的）频道名
-				const channelServer = new ChannelServer(protocol, ctx);
+				const channelServer = new ChannelServer(protocol, ctx, ipcLogger, timeoutDelay);
 				// 频道客户端初始化所需： 协议
-				const channelClient = new ChannelClient(protocol);
+				const channelClient = new ChannelClient(protocol, ipcLogger);
 
 				// 调用频道服务端注册所有频道
 				this.channels.forEach((channel, name) => channelServer.registerChannel(name, channel));

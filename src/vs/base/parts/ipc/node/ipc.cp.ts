@@ -213,7 +213,7 @@ export class Client implements IChannelClient, IDisposable {
 			const onMessageEmitter = new Emitter<VSBuffer>();
 			const onRawMessage = Event.fromNodeEventEmitter(this.child, 'message', msg => msg);
 
-			onRawMessage(msg => {
+			const rawMessageDisposable = onRawMessage(msg => {
 
 				// Handle remote console logs specially
 				if (isRemoteConsoleLog(msg)) {
@@ -239,6 +239,7 @@ export class Client implements IChannelClient, IDisposable {
 
 			this.child.on('exit', (code: any, signal: any) => {
 				process.removeListener('exit' as 'loaded', onExit); // https://github.com/electron/electron/issues/21475
+				rawMessageDisposable.dispose();
 
 				this.activeRequests.forEach(r => dispose(r));
 				this.activeRequests.clear();
