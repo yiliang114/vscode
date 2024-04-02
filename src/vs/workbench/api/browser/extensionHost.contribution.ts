@@ -11,7 +11,7 @@ import { JSONValidationExtensionPoint } from 'vs/workbench/api/common/jsonValida
 import { ColorExtensionPoint } from 'vs/workbench/services/themes/common/colorExtensionPoint';
 import { IconExtensionPoint } from 'vs/workbench/services/themes/common/iconExtensionPoint';
 import { TokenClassificationExtensionPoints } from 'vs/workbench/services/themes/common/tokenClassificationExtensionPoint';
-import { LanguageConfigurationFileHandler } from 'vs/workbench/contrib/codeEditor/browser/languageConfigurationExtensionPoint';
+import { LanguageConfigurationFileHandler } from 'vs/workbench/contrib/codeEditor/common/languageConfigurationExtensionPoint';
 import { StatusBarItemsExtensionPoint } from 'vs/workbench/api/browser/statusBarExtensionPoint';
 
 // TODO: 为什么明明是 extHost ，但是这里引入的却全都是主进程的服务呢？
@@ -86,7 +86,7 @@ import './mainThreadTimeline'; // 时间轴
 import './mainThreadTesting'; // 测试
 import './mainThreadSecretState'; // 秘钥状态
 import './mainThreadShare'; // 分享
-import './mainThreadProfilContentHandlers'; // 性能上报相关？？
+import './mainThreadProfileContentHandlers'; // 性能上报相关？？
 import './mainThreadAiRelatedInformation'; // AI 相关信息
 import './mainThreadAiEmbeddingVector'; // AI 嵌入向量
 import './mainThreadIssueReporter'; // issue reporter

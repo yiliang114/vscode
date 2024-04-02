@@ -194,11 +194,12 @@ async function webviewPreloads(ctx: PreloadContext) {
 			return;
 		}
 
-		if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA') {
-			postNotebookMessage<webviewMessages.IOutputInputFocusMessage>('outputInputFocus', { inputFocused: true });
+		const id = lastFocusedOutput?.id;
+		if (id && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+			postNotebookMessage<webviewMessages.IOutputInputFocusMessage>('outputInputFocus', { inputFocused: true, id });
 
 			activeElement.addEventListener('blur', () => {
-				postNotebookMessage<webviewMessages.IOutputInputFocusMessage>('outputInputFocus', { inputFocused: false });
+				postNotebookMessage<webviewMessages.IOutputInputFocusMessage>('outputInputFocus', { inputFocused: false, id });
 			}, { once: true });
 		}
 	};
@@ -270,6 +271,15 @@ async function webviewPreloads(ctx: PreloadContext) {
 			postNotebookMessage<webviewMessages.IOutputFocusMessage>('outputFocus', outputFocus);
 		}
 	};
+
+	const blurOutput = () => {
+		const selection = window.getSelection();
+		if (!selection) {
+			return;
+		}
+		selection.removeAllRanges();
+	};
+
 	const selectOutputContents = (cellOrOutputId: string) => {
 		const selection = window.getSelection();
 		if (!selection) {
@@ -286,6 +296,17 @@ async function webviewPreloads(ctx: PreloadContext) {
 
 	};
 
+	const selectInputContents = (cellOrOutputId: string) => {
+		const cellOutputContainer = window.document.getElementById(cellOrOutputId);
+		if (!cellOutputContainer) {
+			return;
+		}
+		const activeElement = window.document.activeElement;
+		if (activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA') {
+			(activeElement as HTMLInputElement).select();
+		}
+	};
+
 	const onPageUpDownSelectionHandler = (e: KeyboardEvent) => {
 		if (!lastFocusedOutput?.id || !e.shiftKey) {
 			return;
@@ -297,6 +318,11 @@ async function webviewPreloads(ctx: PreloadContext) {
 		const outputContainer = window.document.getElementById(lastFocusedOutput.id);
 		const selection = window.getSelection();
 		if (!outputContainer || !selection?.anchorNode) {
+			return;
+		}
+		const activeElement = window.document.activeElement;
+		if (activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA') {
+			// Leave for default behavior.
 			return;
 		}
 
@@ -316,6 +342,22 @@ async function webviewPreloads(ctx: PreloadContext) {
 		}
 		selection.removeAllRanges();
 		selection.addRange(range);
+	};
+
+	const disableNativeSelectAll = (e: KeyboardEvent) => {
+		if (!lastFocusedOutput?.id) {
+			return;
+		}
+		const activeElement = window.document.activeElement;
+		if (activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA') {
+			e.preventDefault(); // We will handle selection in editor code.
+			return;
+		}
+
+		if ((e.key === 'a' && e.ctrlKey) || (e.metaKey && e.key === 'a')) {
+			e.preventDefault(); // We will handle selection in editor code.
+			return;
+		}
 	};
 
 	const handleDataUrl = async (data: string | ArrayBuffer | null, downloadName: string) => {
@@ -343,6 +385,7 @@ async function webviewPreloads(ctx: PreloadContext) {
 	window.document.body.addEventListener('focusin', checkOutputInputFocus);
 	window.document.body.addEventListener('focusout', handleOutputFocusOut);
 	window.document.body.addEventListener('keydown', onPageUpDownSelectionHandler);
+	window.document.body.addEventListener('keydown', disableNativeSelectAll);
 
 	interface RendererContext extends rendererApi.RendererContext<unknown> {
 		readonly onDidChangeSettings: Event<RenderOptions>;
@@ -521,24 +564,55 @@ async function webviewPreloads(ctx: PreloadContext) {
 		}
 	};
 
+	let previousDelta: number | undefined;
 	let scrollTimeout: any /* NodeJS.Timeout */ | undefined;
 	let scrolledElement: Element | undefined;
-	function flagRecentlyScrolled(node: Element) {
+	let lastTimeScrolled: number | undefined;
+	function flagRecentlyScrolled(node: Element, deltaY?: number) {
 		scrolledElement = node;
-		node.setAttribute('recentlyScrolled', 'true');
-		clearTimeout(scrollTimeout);
-		scrollTimeout = setTimeout(() => { scrolledElement?.removeAttribute('recentlyScrolled'); }, 300);
+		if (deltaY === undefined) {
+			lastTimeScrolled = Date.now();
+			previousDelta = undefined;
+			node.setAttribute('recentlyScrolled', 'true');
+			clearTimeout(scrollTimeout);
+			scrollTimeout = setTimeout(() => { scrolledElement?.removeAttribute('recentlyScrolled'); }, 300);
+			return true;
+		}
+
+		if (node.hasAttribute('recentlyScrolled')) {
+			if (lastTimeScrolled && Date.now() - lastTimeScrolled > 300) {
+				// it has been a while since we actually scrolled
+				// if scroll velocity increases, it's likely a new scroll event
+				if (!!previousDelta && deltaY < 0 && deltaY < previousDelta - 2) {
+					clearTimeout(scrollTimeout);
+					scrolledElement?.removeAttribute('recentlyScrolled');
+					return false;
+				} else if (!!previousDelta && deltaY > 0 && deltaY > previousDelta + 2) {
+					clearTimeout(scrollTimeout);
+					scrolledElement?.removeAttribute('recentlyScrolled');
+					return false;
+				}
+
+				// the tail end of a smooth scrolling event (from a trackpad) can go on for a while
+				// so keep swallowing it, but we can shorten the timeout since the events occur rapidly
+				clearTimeout(scrollTimeout);
+				scrollTimeout = setTimeout(() => { scrolledElement?.removeAttribute('recentlyScrolled'); }, 50);
+			} else {
+				clearTimeout(scrollTimeout);
+				scrollTimeout = setTimeout(() => { scrolledElement?.removeAttribute('recentlyScrolled'); }, 300);
+			}
+
+			previousDelta = deltaY;
+			return true;
+		}
+
+		return false;
 	}
 
 	function eventTargetShouldHandleScroll(event: WheelEvent) {
 		for (let node = event.target as Node | null; node; node = node.parentNode) {
 			if (!(node instanceof Element) || node.id === 'container' || node.classList.contains('cell_container') || node.classList.contains('markup') || node.classList.contains('output_container')) {
 				return false;
-			}
-
-			if (node.hasAttribute('recentlyScrolled') && scrolledElement === node) {
-				flagRecentlyScrolled(node);
-				return true;
 			}
 
 			// scroll up
@@ -563,6 +637,10 @@ async function webviewPreloads(ctx: PreloadContext) {
 				}
 
 				flagRecentlyScrolled(node);
+				return true;
+			}
+
+			if (flagRecentlyScrolled(node, event.deltaY)) {
 				return true;
 			}
 		}
@@ -598,13 +676,19 @@ async function webviewPreloads(ctx: PreloadContext) {
 			if (cellOutputContainer.contains(window.document.activeElement)) {
 				return;
 			}
-
+			const id = cellOutputContainer.id;
 			let focusableElement = cellOutputContainer.querySelector('[tabindex="0"], [href], button, input, option, select, textarea') as HTMLElement | null;
 			if (!focusableElement) {
 				focusableElement = cellOutputContainer;
 				focusableElement.tabIndex = -1;
+				postNotebookMessage<webviewMessages.IOutputInputFocusMessage>('outputInputFocus', { inputFocused: false, id });
+			} else {
+				const inputFocused = focusableElement.tagName === 'INPUT' || focusableElement.tagName === 'TEXTAREA';
+				postNotebookMessage<webviewMessages.IOutputInputFocusMessage>('outputInputFocus', { inputFocused, id });
 			}
 
+			lastFocusedOutput = cellOutputContainer;
+			postNotebookMessage<webviewMessages.IOutputFocusMessage>('outputFocus', { id: cellOutputContainer.id });
 			focusableElement.focus();
 		}
 	}
@@ -614,7 +698,7 @@ async function webviewPreloads(ctx: PreloadContext) {
 		element.id = `focus-sink-${cellId}`;
 		element.tabIndex = 0;
 		element.addEventListener('focus', () => {
-			postNotebookMessage<webviewMessages.IBlurOutputMessage>('focus-editor', {
+			postNotebookMessage<webviewMessages.IFocusEditorMessage>('focus-editor', {
 				cellId: cellId,
 				focusNext
 			});
@@ -1657,8 +1741,14 @@ async function webviewPreloads(ctx: PreloadContext) {
 			case 'focus-output':
 				focusFirstFocusableOrContainerInOutput(event.data.cellOrOutputId, event.data.alternateId);
 				break;
+			case 'blur-output':
+				blurOutput();
+				break;
 			case 'select-output-contents':
 				selectOutputContents(event.data.cellOrOutputId);
+				break;
+			case 'select-input-contents':
+				selectInputContents(event.data.cellOrOutputId);
 				break;
 			case 'decorations': {
 				let outputContainer = window.document.getElementById(event.data.cellId);
@@ -2621,7 +2711,21 @@ async function webviewPreloads(ctx: PreloadContext) {
 			outputElement/** outputNode */.element.style.visibility = data.initiallyHidden ? 'hidden' : '';
 
 			if (!!data.executionId && !!data.rendererId) {
-				postNotebookMessage<webviewMessages.IPerformanceMessage>('notebookPerformanceMessage', { cellId: data.cellId, executionId: data.executionId, duration: Date.now() - startTime, rendererId: data.rendererId });
+				let outputSize: number | undefined = undefined;
+				let mimeType: string | undefined = undefined;
+				if (data.content.type === 1 /* extension */) {
+					outputSize = data.content.output.valueBytes.length;
+					mimeType = data.content.output.mime;
+				}
+
+				postNotebookMessage<webviewMessages.IPerformanceMessage>('notebookPerformanceMessage', {
+					cellId: data.cellId,
+					executionId: data.executionId,
+					duration: Date.now() - startTime,
+					rendererId: data.rendererId,
+					outputSize,
+					mimeType
+				});
 			}
 		}
 
