@@ -3,6 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+// monaco 的 API 导出
 import 'vs/editor/editor.all';
 import 'vs/editor/standalone/browser/iPadShowKeyboard/iPadShowKeyboard';
 import 'vs/editor/standalone/browser/inspectTokens/inspectTokens';
