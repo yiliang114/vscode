@@ -67,7 +67,8 @@ jobs:
         run: yarn monaco-compile-check
 
       - name: Editor Distro & ESM
-        # 构建 ESM 包？ TODO: 原本 Monaco 里应该也是使用自己的 AMD Loader， 这里为什么又叫 ESM ？
+        # 只构建 ESM 包？
+        # TODO: 原本 Monaco 里应该也是使用自己的 AMD Loader， 这里为什么又叫 ESM ？
         run: yarn gulp editor-esm
 
       - name: Editor ESM sources check

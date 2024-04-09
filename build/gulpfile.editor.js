@@ -25,6 +25,10 @@ const headerVersion = semver + '(' + sha1 + ')';
 
 // Build
 
+// 构建 Monaco Editor Core
+// 独立打包生一个 叫 monaco-editor-core 的 npm 包，而该包最终作为 monaco-editor 的核心依赖。
+// monaco 被可以把这里看作一个精简版的编辑器，提供了最基础的编辑功能，对外暴露各种 API, 由具体的外部服务决定编辑器的行为，目前市面上很多代码编辑器工具就是基于 monaco。
+// 所以 editor 路径下的代码不能加任何 vscode 专有的功能， 并且只依赖公用服务。
 const editorEntryPoints = [
 	{
 		name: 'vs/editor/editor.main',
@@ -35,6 +39,7 @@ const editorEntryPoints = [
 			{ path: 'out-editor-build/vs/nls.js', amdModuleId: 'vs/nls' }
 		],
 	},
+	// TODO: 为什么有一个 worker？
 	{
 		name: 'vs/base/common/worker/simpleWorker',
 		include: ['vs/editor/common/services/editorSimpleWorker'],
@@ -70,6 +75,7 @@ const extractEditorSrcTask = task.define('extract-editor-src', () => {
 	const extrausages = fs.readFileSync(path.join(root, 'build', 'monaco', 'monaco.usage.recipe')).toString();
 	standalone.extractEditor({
 		sourcesRoot: path.join(root, 'src'),
+		// 几个主要的入口文件
 		entryPoints: [
 			'vs/editor/editor.main',
 			'vs/editor/editor.worker',
@@ -387,7 +393,7 @@ const finalEditorResourcesTask = task.define('final-editor-resources', () => {
 	);
 });
 
-// TODO: 从 vscode 源码中提取 editor 代码？
+// 从 vscode 源码中提取 editor 代码
 gulp.task('extract-editor-src',
 	task.series(
 		util.rimraf('out-editor-src'),
@@ -395,7 +401,7 @@ gulp.task('extract-editor-src',
 	)
 );
 
-// monaco 编辑器发行版构建？
+// monaco amd 版构建
 gulp.task('editor-distro',
 	task.series(
 		task.parallel(
@@ -423,7 +429,7 @@ gulp.task('editor-distro',
 	)
 );
 
-// 构建 monaco esm 核心任务
+// 构建 monaco esm 版本.  Github Action 中的 monaco-editor.yml 中执行的主要构建步骤。
 gulp.task('editor-esm',
 	task.series(
 		task.parallel(
@@ -431,10 +437,10 @@ gulp.task('editor-esm',
 			util.rimraf('out-editor-esm'),
 			util.rimraf('out-monaco-editor-core'),
 		),
-		extractEditorSrcTask,
-		createESMSourcesAndResourcesTask,
-		compileEditorESMTask,
-		appendJSToESMImportsTask,
+		extractEditorSrcTask, // 提取 editor 源码
+		createESMSourcesAndResourcesTask, // 创建 esm 源码
+		compileEditorESMTask, // 编译
+		appendJSToESMImportsTask, // 追加 js
 	)
 );
 

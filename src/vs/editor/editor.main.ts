@@ -5,6 +5,7 @@
 
 // monaco 的 API 导出
 import 'vs/editor/editor.all';
+// vs/editor/standalone 只是用来把核心编辑器独立打包成 Monaco 的一个壳。它不会被任何模块依赖。
 import 'vs/editor/standalone/browser/iPadShowKeyboard/iPadShowKeyboard';
 import 'vs/editor/standalone/browser/inspectTokens/inspectTokens';
 import 'vs/editor/standalone/browser/quickAccess/standaloneHelpQuickAccess';
