@@ -61,6 +61,7 @@ import './mainThreadStatusBar'; // 状态栏
 import './mainThreadStorage'; // 存储
 import './mainThreadTelemetry'; // 遥测，数据上报。。。
 import './mainThreadTerminalService'; // 终端
+import './mainThreadTerminalShellIntegration';
 import './mainThreadTheming'; // 主题
 import './mainThreadTreeViews'; // 树视图
 import './mainThreadDownloadService'; // 下载服务
@@ -77,7 +78,6 @@ import './mainThreadNotebookRenderers'; // notebook 渲染器，也是类似 web
 import './mainThreadNotebookSaveParticipant'; // notebook 保存参与
 import './mainThreadInteractive'; // 交互
 import './mainThreadInlineChat'; // 内联聊天
-import './mainThreadChat'; // 聊天
 import './mainThreadTask'; // 任务
 import './mainThreadLabelService'; // 标签服务
 import './mainThreadTunnelService'; // 隧道服务
@@ -89,7 +89,6 @@ import './mainThreadShare'; // 分享
 import './mainThreadProfileContentHandlers'; // 性能上报相关？？
 import './mainThreadAiRelatedInformation'; // AI 相关信息
 import './mainThreadAiEmbeddingVector'; // AI 嵌入向量
-import './mainThreadIssueReporter'; // issue reporter
 
 export class ExtensionPoints implements IWorkbenchContribution {
 
