@@ -57,6 +57,7 @@ const editorResources = [
 	'out-editor-build/vs/base/browser/ui/codicons/**/*.ttf'
 ];
 
+// 打包产物中为每一个文件添加头部
 const BUNDLED_FILE_HEADER = [
 	'/*!-----------------------------------------------------------',
 	' * Copyright (c) Microsoft Corporation. All rights reserved.',
@@ -67,6 +68,8 @@ const BUNDLED_FILE_HEADER = [
 	''
 ].join('\n');
 
+// 非稳定版 monaco editor 构建的语言包，可能以前在非稳定版构建时不会构建全量语言，可能是为了减少构建时间。
+// 另外一点，从这里了解到，monaco 也有 stable 版和 insider 版区分。
 const languages = i18n.defaultLanguages.concat([]);  // i18n.defaultLanguages.concat(process.env.VSCODE_QUALITY !== 'stable' ? i18n.extraLanguages : []);
 
 // 此处的 task.define 并不是 gulp 声明任务，而只是单纯因为 gulp 任务运行需要很多额外的属性，例如 displayName 等，task.define 就是对 Task 实例属性做了一层包装
@@ -92,7 +95,9 @@ const extractEditorSrcTask = task.define('extract-editor-src', () => {
 	});
 });
 
+// TODO: 关于 ts 的 mangling 可以写一篇文章？
 // Disable mangling for the editor, as it complicates debugging & quite a few users rely on private/protected fields.
+// 禁用编辑器的 mangling，因为它使调试复杂化 & 相当多的用户依赖于私有/受保护的字段。
 const compileEditorAMDTask = task.define('compile-editor-amd', compilation.compileTask('out-editor-src', 'out-editor-build', true, { disableMangle: true }));
 
 const optimizeEditorAMDTask = task.define('optimize-editor-amd', optimize.optimizeTask(
@@ -117,8 +122,11 @@ const optimizeEditorAMDTask = task.define('optimize-editor-amd', optimize.optimi
 	}
 ));
 
+// minify 化 amd 形式的 monaco-editor-core. 通常这回事最后一步。
+// amd monaco-editor-core 构建流程： src 中代码提取到 out-editor-src，然后通过 amd 构建到 out-editor-build，接着优化构建产物到 out-editor，最后 minify 到 out-editor
 const minifyEditorAMDTask = task.define('minify-editor-amd', optimize.minifyTask('out-editor'));
 
+// 提取 esm 形式的代码需要额外的任务
 const createESMSourcesAndResourcesTask = task.define('extract-editor-esm', () => {
 	standalone.createESMSourcesAndResources2({
 		srcFolder: './out-editor-src',

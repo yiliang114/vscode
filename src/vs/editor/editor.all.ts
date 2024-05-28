@@ -6,6 +6,8 @@
 import 'vs/editor/browser/coreCommands';
 import 'vs/editor/browser/widget/codeEditor/codeEditorWidget';
 import 'vs/editor/browser/widget/diffEditor/diffEditor.contribution';
+// 对于编辑器的基础功能，比如查找、悬浮、复制黏贴、格式化、消息等这些独立的实体封装
+// 里面基本依赖 vs/edit/browser 和 vs/edit/common 的逻辑。 这些基本 contrib （扩展），是会被整个 vscode 或者独立发布的 Monaco 内置的部分。
 import 'vs/editor/contrib/anchorSelect/browser/anchorSelect';
 import 'vs/editor/contrib/bracketMatching/browser/bracketMatching';
 import 'vs/editor/contrib/caretOperations/browser/caretOperations';

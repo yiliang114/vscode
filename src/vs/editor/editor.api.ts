@@ -19,6 +19,7 @@ EditorOptions.overviewRulerLanes.defaultValue = 2;
 // See https://github.com/microsoft/monaco-editor/issues/2327
 FormattingConflicts.setFormatterSelector((formatter, document, mode) => Promise.resolve(formatter[0]));
 
+// monaco 最关键的几个 API. editor & languages.
 const api = createMonacoBaseAPI();
 api.editor = createMonacoEditorAPI();
 api.languages = createMonacoLanguagesAPI();
