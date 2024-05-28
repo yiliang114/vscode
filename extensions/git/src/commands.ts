@@ -11,7 +11,7 @@ import { uniqueNamesGenerator, adjectives, animals, colors, NumberDictionary } f
 import { ForcePushMode, GitErrorCodes, Ref, RefType, Status, CommitOptions, RemoteSourcePublisher, Remote } from './api/git';
 import { Git, Stash } from './git';
 import { Model } from './model';
-import { Repository, Resource, ResourceGroupType } from './repository';
+import { GitResourceGroup, Repository, Resource, ResourceGroupType } from './repository';
 import { DiffEditorSelectionHunkToolbarContext, applyLineChanges, getModifiedRange, intersectDiffWithRange, invertLineChange, toLineRanges } from './staging';
 import { fromGitUri, toGitUri, isGitUri, toMergeUris, toMultiFileDiffEditorUris } from './uri';
 import { dispose, grep, isDefined, isDescendant, pathEquals, relativePath } from './util';
@@ -4141,6 +4141,44 @@ export class CommandCenter {
 			await this.model.openRepository(unsafeRepository);
 			this.model.deleteUnsafeRepository(unsafeRepository);
 		}
+	}
+
+	@command('git.viewChanges', { repository: true })
+	async viewChanges(repository: Repository): Promise<void> {
+		await this._viewResourceGroupChanges(repository, repository.workingTreeGroup);
+	}
+
+	@command('git.viewStagedChanges', { repository: true })
+	async viewStagedChanges(repository: Repository): Promise<void> {
+		await this._viewResourceGroupChanges(repository, repository.indexGroup);
+	}
+
+	@command('git.viewUntrackedChanges', { repository: true })
+	async viewUnstagedChanges(repository: Repository): Promise<void> {
+		await this._viewResourceGroupChanges(repository, repository.untrackedGroup);
+	}
+
+	private async _viewResourceGroupChanges(repository: Repository, resourceGroup: GitResourceGroup): Promise<void> {
+		if (resourceGroup.resourceStates.length === 0) {
+			switch (resourceGroup.id) {
+				case 'index':
+					window.showInformationMessage(l10n.t('The repository does not have any staged changes.'));
+					break;
+				case 'workingTree':
+					window.showInformationMessage(l10n.t('The repository does not have any changes.'));
+					break;
+				case 'untracked':
+					window.showInformationMessage(l10n.t('The repository does not have any untracked changes.'));
+					break;
+			}
+			return;
+		}
+
+		await commands.executeCommand('_workbench.openScmMultiDiffEditor', {
+			title: `${repository.sourceControl.label}: ${resourceGroup.label}`,
+			repositoryUri: Uri.file(repository.root),
+			resourceGroupId: resourceGroup.id
+		});
 	}
 
 	@command('git.viewCommit', { repository: true })

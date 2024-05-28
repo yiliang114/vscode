@@ -8,7 +8,7 @@ import { Schemas } from 'vs/base/common/network';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IDialogService } from 'vs/platform/dialogs/common/dialogs';
 import { ExtensionKind } from 'vs/platform/environment/common/environment';
-import { ExtensionIdentifier, ExtensionType, IExtension, IExtensionDescription } from 'vs/platform/extensions/common/extensions';
+import { ExtensionIdentifier, IExtensionDescription } from 'vs/platform/extensions/common/extensions';
 import { IFileService } from 'vs/platform/files/common/files';
 import { InstantiationType, registerSingleton } from 'vs/platform/instantiation/common/extensions';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
@@ -112,19 +112,6 @@ export class ExtensionService extends AbstractExtensionService implements IExten
 		this._initFetchFileSystem();
 	}
 
-	protected async _scanSingleExtension(extension: IExtension): Promise<IExtensionDescription | null> {
-		if (extension.location.scheme === Schemas.vscodeRemote) {
-			return this._remoteExtensionsScannerService.scanSingleExtension(extension.location, extension.type === ExtensionType.System);
-		}
-
-		const scannedExtension = await this._webExtensionsScannerService.scanExistingExtension(extension.location, extension.type, this._userDataProfileService.currentProfile.extensionsResource);
-		if (scannedExtension) {
-			return toExtensionDescription(scannedExtension);
-		}
-
-		return null;
-	}
-
 	// 初始化 http/https 形式的文件系统。
 	private _initFetchFileSystem(): void {
 		const provider = new FetchFileSystemProvider();
@@ -143,7 +130,7 @@ export class ExtensionService extends AbstractExtensionService implements IExten
 		} catch (error) {
 			this._logService.error(error);
 		}
-		return dedupExtensions(system, user, development, this._logService);
+		return dedupExtensions(system, user, [], development, this._logService);
 	}
 
 	protected async _resolveExtensionsDefault() {

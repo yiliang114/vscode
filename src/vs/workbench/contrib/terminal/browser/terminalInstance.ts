@@ -88,6 +88,11 @@ import { AccessibilityCommandId } from 'vs/workbench/contrib/accessibility/commo
 import { terminalStrings } from 'vs/workbench/contrib/terminal/common/terminalStrings';
 import { shouldPasteTerminalText } from 'vs/workbench/contrib/terminal/common/terminalClipboard';
 import { TerminalIconPicker } from 'vs/workbench/contrib/terminal/browser/terminalIconPicker';
+import { IHostService } from 'vs/workbench/services/host/browser/host';
+
+// HACK: This file should not depend on terminalContrib
+// eslint-disable-next-line local/code-import-patterns
+import { TerminalAccessibilityCommandId } from 'vs/workbench/contrib/terminalContrib/accessibility/common/terminal.accessibility';
 
 const enum Constants {
 	/**
@@ -165,6 +170,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 	private _layoutSettingsChanged: boolean = true;
 	private _dimensionsOverride: ITerminalDimensionsOverride | undefined;
 	private _areLinksReady: boolean = false;
+	private readonly _initialDataEventsListener: MutableDisposable<IDisposable> = this._register(new MutableDisposable());
 	private _initialDataEvents: string[] | undefined = [];
 	private _containerReadyBarrier: AutoOpenBarrier;
 	private _attachBarrier: AutoOpenBarrier;
@@ -300,6 +306,8 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 	readonly onTitleChanged = this._onTitleChanged.event;
 	private readonly _onIconChanged = this._register(new Emitter<{ instance: ITerminalInstance; userInitiated: boolean }>());
 	readonly onIconChanged = this._onIconChanged.event;
+	private readonly _onWillData = this._register(new Emitter<string>());
+	readonly onWillData = this._onWillData.event;
 	private readonly _onData = this._register(new Emitter<string>());
 	readonly onData = this._onData.event;
 	private readonly _onBinary = this._register(new Emitter<string>());
@@ -320,7 +328,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 	readonly onDidRequestFocus = this._onDidRequestFocus.event;
 	private readonly _onDidBlur = this._register(new Emitter<ITerminalInstance>());
 	readonly onDidBlur = this._onDidBlur.event;
-	private readonly _onDidInputData = this._register(new Emitter<ITerminalInstance>());
+	private readonly _onDidInputData = this._register(new Emitter<string>());
 	readonly onDidInputData = this._onDidInputData.event;
 	private readonly _onDidChangeSelection = this._register(new Emitter<ITerminalInstance>());
 	readonly onDidChangeSelection = this._onDidChangeSelection.event;
@@ -334,6 +342,8 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 	readonly onDidChangeTarget = this._onDidChangeTarget.event;
 	private readonly _onDidSendText = this._register(new Emitter<string>());
 	readonly onDidSendText = this._onDidSendText.event;
+	private readonly _onDidChangeShellType = this._register(new Emitter<TerminalShellType>());
+	readonly onDidChangeShellType = this._onDidChangeShellType.event;
 
 	constructor(
 		private readonly _terminalShellTypeContextKey: IContextKey<string>,
@@ -550,6 +560,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 		let initialDataEventsTimeout: number | undefined = dom.getWindow(this._container).setTimeout(() => {
 			initialDataEventsTimeout = undefined;
 			this._initialDataEvents = undefined;
+			this._initialDataEventsListener.clear();
 		}, 10000);
 		this._register(toDisposable(() => {
 			if (initialDataEventsTimeout) {
@@ -574,7 +585,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 			this._xtermReadyPromise.then(xterm => {
 				contribution.xtermReady?.(xterm);
 			});
-			this.onDisposed(() => {
+			this._register(this.onDisposed(() => {
 				contribution.dispose();
 				this._contributions.delete(desc.id);
 				// Just in case to prevent potential future memory leaks due to cyclic dependency.
@@ -584,7 +595,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 				if ('_instance' in contribution) {
 					delete contribution._instance;
 				}
-			});
+			}));
 		}
 	}
 
@@ -700,7 +711,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 	get shouldPersist(): boolean { return this._processManager.shouldPersist && !this.shellLaunchConfig.isTransient && (!this.reconnectionProperties || this._configurationService.getValue('task.reconnection') === true); }
 
 	public static getXtermConstructor(keybindingService: IKeybindingService, contextKeyService: IContextKeyService) {
-		const keybinding = keybindingService.lookupKeybinding(TerminalCommandId.FocusAccessibleBuffer, contextKeyService);
+		const keybinding = keybindingService.lookupKeybinding(TerminalAccessibilityCommandId.FocusAccessibleBuffer, contextKeyService);
 		if (xtermConstructor) {
 			return xtermConstructor;
 		}
@@ -772,7 +783,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 		this._register(this._processManager.onProcessData(e => this._onProcessData(e)));
 		this._register(xterm.raw.onData(async data => {
 			await this._processManager.write(data);
-			this._onDidInputData.fire(this);
+			this._onDidInputData.fire(data);
 		}));
 		this._register(xterm.raw.onBinary(data => this._processManager.processBinary(data)));
 		// Init winpty compat and link handler after process creation as they rely on the
@@ -847,7 +858,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 		// Determine whether to send ETX (ctrl+c) before running the command. This should always
 		// happen unless command detection can reliably say that a command is being entered and
 		// there is no content in the prompt
-		if (commandDetection?.hasInput !== false) {
+		if (!commandDetection || commandDetection.promptInputModel.value.length > 0) {
 			await this.sendText('\x03', false);
 			// Wait a little before running the command to avoid the sequences being echoed while the ^C
 			// is being evaluated
@@ -985,7 +996,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 								run: () => {
 									this._preferencesService.openSettings({ jsonEditor: false, query: `@id:${TerminalSettingId.CommandsToSkipShell},${TerminalSettingId.SendKeybindingsToShell},${TerminalSettingId.AllowChords}` });
 								}
-							} as IPromptChoice
+							} satisfies IPromptChoice
 						]
 					);
 					this._storageService.store(SHOW_TERMINAL_CONFIG_PROMPT_KEY, false, StorageScope.APPLICATION, StorageTarget.USER);
@@ -1240,8 +1251,9 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 		}
 
 		// Send it to the process
+		this._logService.debug('sending data (vscode)', text);
 		await this._processManager.write(text);
-		this._onDidInputData.fire(this);
+		this._onDidInputData.fire(text);
 		this._onDidSendText.fire(text);
 		this.xterm?.scrollToBottom();
 		if (shouldExecute) {
@@ -1394,10 +1406,7 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 			}
 		}));
 
-		this._register(processManager.onProcessData(ev => {
-			this._initialDataEvents?.push(ev.data);
-			this._onData.fire(ev.data);
-		}));
+		this._initialDataEventsListener.value = processManager.onProcessData(ev => this._initialDataEvents?.push(ev.data));
 		this._register(processManager.onProcessReplayComplete(() => this._onProcessReplayComplete.fire()));
 		this._register(processManager.onEnvironmentVariableInfoChanged(e => this._onEnvironmentVariableInfoChanged(e)));
 		this._register(processManager.onPtyDisconnect(() => {
@@ -1453,6 +1462,9 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 				}
 			}
 		});
+		if (this.isDisposed) {
+			return;
+		}
 		if (this.xterm?.shellIntegration) {
 			this.capabilities.add(this.xterm.shellIntegration.capabilities);
 		}
@@ -1480,19 +1492,36 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 	}
 
 	private _onProcessData(ev: IProcessDataEvent): void {
-		if (ev.trackCommit) {
-			ev.writePromise = new Promise<void>(r => this._writeProcessData(ev, r));
+		// Ensure events are split by SI command execute sequence to ensure the output of the
+		// command can be read by extensions. This must be done here as xterm.js does not currently
+		// have a listener for when individual data events are parsed, only `onWriteParsed` which
+		// fires when the write buffer is flushed.
+		const execIndex = ev.data.indexOf('\x1b]633;C\x07');
+		if (execIndex !== -1) {
+			if (ev.trackCommit) {
+				this._writeProcessData(ev.data.substring(0, execIndex + '\x1b]633;C\x07'.length));
+				ev.writePromise = new Promise<void>(r => this._writeProcessData(ev.data.substring(execIndex + '\x1b]633;C\x07'.length), r));
+			} else {
+				this._writeProcessData(ev.data.substring(0, execIndex + '\x1b]633;C\x07'.length));
+				this._writeProcessData(ev.data.substring(execIndex + '\x1b]633;C\x07'.length));
+			}
 		} else {
-			this._writeProcessData(ev);
+			if (ev.trackCommit) {
+				ev.writePromise = new Promise<void>(r => this._writeProcessData(ev.data, r));
+			} else {
+				this._writeProcessData(ev.data);
+			}
 		}
 	}
 
-	private _writeProcessData(ev: IProcessDataEvent, cb?: () => void) {
+	private _writeProcessData(data: string, cb?: () => void) {
+		this._onWillData.fire(data);
 		const messageId = ++this._latestXtermWriteData;
-		this.xterm?.raw.write(ev.data, () => {
+		this.xterm?.raw.write(data, () => {
 			this._latestXtermParseData = messageId;
-			this._processManager.acknowledgeDataEvent(ev.data.length);
+			this._processManager.acknowledgeDataEvent(data.length);
 			cb?.();
+			this._onData.fire(data);
 		});
 	}
 
@@ -1870,9 +1899,13 @@ export class TerminalInstance extends Disposable implements ITerminalInstance {
 	}
 
 	setShellType(shellType: TerminalShellType | undefined) {
-		this._shellType = shellType;
+		if (this._shellType === shellType) {
+			return;
+		}
 		if (shellType) {
+			this._shellType = shellType;
 			this._terminalShellTypeContextKey.set(shellType?.toString());
+			this._onDidChangeShellType.fire(shellType);
 		}
 	}
 
@@ -2256,15 +2289,14 @@ class TerminalInstanceDragAndDropController extends Disposable implements dom.ID
 		private readonly _container: HTMLElement,
 		@IWorkbenchLayoutService private readonly _layoutService: IWorkbenchLayoutService,
 		@IViewDescriptorService private readonly _viewDescriptorService: IViewDescriptorService,
+		@IHostService private readonly _hostService: IHostService,
 	) {
 		super();
 		this._register(toDisposable(() => this._clearDropOverlay()));
 	}
 
 	private _clearDropOverlay() {
-		if (this._dropOverlay && this._dropOverlay.parentElement) {
-			this._dropOverlay.parentElement.removeChild(this._dropOverlay);
-		}
+		this._dropOverlay?.remove();
 		this._dropOverlay = undefined;
 	}
 
@@ -2340,9 +2372,9 @@ class TerminalInstanceDragAndDropController extends Disposable implements dom.ID
 			path = URI.file(JSON.parse(rawCodeFiles)[0]);
 		}
 
-		if (!path && e.dataTransfer.files.length > 0 && e.dataTransfer.files[0].path /* Electron only */) {
+		if (!path && e.dataTransfer.files.length > 0 && this._hostService.getPathForFile(e.dataTransfer.files[0])) {
 			// Check if the file was dragged from the filesystem
-			path = URI.file(e.dataTransfer.files[0].path);
+			path = URI.file(this._hostService.getPathForFile(e.dataTransfer.files[0])!);
 		}
 
 		if (!path) {

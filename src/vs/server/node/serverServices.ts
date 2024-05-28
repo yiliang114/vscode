@@ -9,7 +9,7 @@ import { DisposableStore, toDisposable } from 'vs/base/common/lifecycle';
 import { Schemas } from 'vs/base/common/network';
 import * as path from 'vs/base/common/path';
 import { IURITransformer } from 'vs/base/common/uriIpc';
-import { getMachineId, getSqmMachineId } from 'vs/base/node/id';
+import { getMachineId, getSqmMachineId, getdevDeviceId } from 'vs/base/node/id';
 import { Promises } from 'vs/base/node/pfs';
 import { ClientConnectionEvent, IMessagePassingProtocol, IPCServer, StaticRouter } from 'vs/base/parts/ipc/common/ipc';
 import { ProtocolConstants } from 'vs/base/parts/ipc/common/ipc.net';
@@ -134,11 +134,12 @@ export async function setupServerServices(connectionToken: ServerConnectionToken
 	socketServer.registerChannel('userDataProfiles', new RemoteUserDataProfilesServiceChannel(userDataProfilesService, (ctx: RemoteAgentConnectionContext) => getUriTransformer(ctx.remoteAuthority)));
 
 	// Initialize
-	const [, , machineId, sqmId] = await Promise.all([
+	const [, , machineId, sqmId, devDeviceId] = await Promise.all([
 		configurationService.initialize(),
 		userDataProfilesService.init(),
 		getMachineId(logService.error.bind(logService)),
-		getSqmMachineId(logService.error.bind(logService))
+		getSqmMachineId(logService.error.bind(logService)),
+		getdevDeviceId(logService.error.bind(logService))
 	]);
 
 	const extensionHostStatusService = new ExtensionHostStatusService();
@@ -158,7 +159,7 @@ export async function setupServerServices(connectionToken: ServerConnectionToken
 
 		const config: ITelemetryServiceConfig = {
 			appenders: [oneDsAppender],
-			commonProperties: resolveCommonProperties(release(), hostname(), process.arch, productService.commit, productService.version + '-remote', machineId, sqmId, isInternal, 'remoteAgent'),
+			commonProperties: resolveCommonProperties(release(), hostname(), process.arch, productService.commit, productService.version + '-remote', machineId, sqmId, devDeviceId, isInternal, 'remoteAgent'),
 			piiPaths: getPiiPathsFromEnvironment(environmentService)
 		};
 		const initialTelemetryLevelArg = environmentService.args['telemetry-level'];
@@ -222,7 +223,7 @@ export async function setupServerServices(connectionToken: ServerConnectionToken
 
 		// TODO: 对远程文件系统的 scheme 做了映射？
 		// 远程文件系统？ 这个通道为什么不是 file 或者 vscode-remote 之类的？
-		const remoteFileSystemChannel = new RemoteAgentFileSystemProviderChannel(logService, environmentService);
+		const remoteFileSystemChannel = disposables.add(new RemoteAgentFileSystemProviderChannel(logService, environmentService));
 		// remoteFilesystem ？？
 		socketServer.registerChannel(REMOTE_FILE_SYSTEM_CHANNEL_NAME, remoteFileSystemChannel);
 

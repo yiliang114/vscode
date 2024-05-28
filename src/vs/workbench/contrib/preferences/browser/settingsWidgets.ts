@@ -497,7 +497,7 @@ export class ListSettingWidget extends AbstractListSettingWidget<IListDataItem> 
 				const dragImage = this.getDragImage(item);
 				rowElement.ownerDocument.body.appendChild(dragImage);
 				ev.dataTransfer.setDragImage(dragImage, -10, -10);
-				setTimeout(() => rowElement.ownerDocument.body.removeChild(dragImage), 0);
+				setTimeout(() => dragImage.remove(), 0);
 			}
 		}));
 		this.listDisposables.add(DOM.addDisposableListener(rowElement, DOM.EventType.DRAG_OVER, (ev) => {
@@ -894,32 +894,35 @@ export class ObjectSettingDropdownWidget extends AbstractListSettingWidget<IObje
 	}
 
 	protected getActionsForItem(item: IObjectDataItem, idx: number): IAction[] {
-		const actions = [
+		const actions: IAction[] = [
 			{
 				class: ThemeIcon.asClassName(settingsEditIcon),
 				enabled: true,
 				id: 'workbench.action.editListItem',
+				label: '',
 				tooltip: this.getLocalizedStrings().editActionTooltip,
 				run: () => this.editSetting(idx)
 			},
-		] as IAction[];
+		];
 
 		if (item.removable) {
 			actions.push({
 				class: ThemeIcon.asClassName(settingsRemoveIcon),
 				enabled: true,
 				id: 'workbench.action.removeListItem',
+				label: '',
 				tooltip: this.getLocalizedStrings().deleteActionTooltip,
 				run: () => this._onDidChangeList.fire({ originalItem: item, item: undefined, targetIndex: idx })
-			} as IAction);
+			});
 		} else {
 			actions.push({
 				class: ThemeIcon.asClassName(settingsDiscardIcon),
 				enabled: true,
 				id: 'workbench.action.resetListItem',
+				label: '',
 				tooltip: this.getLocalizedStrings().resetActionTooltip,
 				run: () => this._onDidChangeList.fire({ originalItem: item, item: undefined, targetIndex: idx })
-			} as IAction);
+			});
 		}
 
 		return actions;

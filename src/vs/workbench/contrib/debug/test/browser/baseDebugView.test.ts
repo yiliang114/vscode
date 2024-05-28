@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import * as assert from 'assert';
+import assert from 'assert';
 import * as dom from 'vs/base/browser/dom';
 import { HighlightedLabel } from 'vs/base/browser/ui/highlightedlabel/highlightedLabel';
 import { DisposableStore } from 'vs/base/common/lifecycle';
@@ -31,7 +31,7 @@ suite('Debug - Base Debug View', () => {
 	 * Instantiate services for use by the functions being tested.
 	 */
 	setup(() => {
-		const instantiationService: TestInstantiationService = <TestInstantiationService>workbenchInstantiationService(undefined, disposables);
+		const instantiationService: TestInstantiationService = workbenchInstantiationService(undefined, disposables);
 		linkDetector = instantiationService.createInstance(LinkDetector);
 	});
 
@@ -42,7 +42,7 @@ suite('Debug - Base Debug View', () => {
 		assert.strictEqual(treeContainer.className, 'debug-view-content');
 		assert.strictEqual(container.childElementCount, 1);
 		assert.strictEqual(container.firstChild, treeContainer);
-		assert.strictEqual(treeContainer instanceof HTMLDivElement, true);
+		assert.strictEqual(dom.isHTMLDivElement(treeContainer), true);
 	});
 
 	test('render expression value', () => {

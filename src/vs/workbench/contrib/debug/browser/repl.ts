@@ -143,7 +143,7 @@ export class Repl extends FilterViewPane implements IHistoryNavigationWidget {
 		super({
 			...options,
 			filterOptions: {
-				placeholder: localize({ key: 'workbench.debug.filter.placeholder', comment: ['Text in the brackets after e.g. is not localizable'] }, "Filter (e.g. text, !exclude)"),
+				placeholder: localize({ key: 'workbench.debug.filter.placeholder', comment: ['Text in the brackets after e.g. is not localizable'] }, "Filter (e.g. text, !exclude, \\escape)"),
 				text: filterText,
 				history: JSON.parse(storageService.get(FILTER_HISTORY_STORAGE_KEY, StorageScope.WORKSPACE, '[]')) as string[],
 			}
@@ -687,7 +687,7 @@ export class Repl extends FilterViewPane implements IHistoryNavigationWidget {
 		};
 		CONTEXT_IN_DEBUG_REPL.bindTo(this.scopedContextKeyService).set(true);
 
-		this.scopedInstantiationService = this.instantiationService.createChild(new ServiceCollection([IContextKeyService, this.scopedContextKeyService]));
+		this.scopedInstantiationService = this._register(this.instantiationService.createChild(new ServiceCollection([IContextKeyService, this.scopedContextKeyService])));
 		const options = getSimpleEditorOptions(this.configurationService);
 		options.readOnly = true;
 		options.suggest = { showStatusBar: true };

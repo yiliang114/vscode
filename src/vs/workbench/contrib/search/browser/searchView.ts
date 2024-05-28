@@ -237,8 +237,8 @@ export class SearchView extends ViewPane {
 		this.inputPatternExclusionsFocused = Constants.SearchContext.PatternExcludesFocusedKey.bindTo(this.contextKeyService);
 		this.isEditableItem = Constants.SearchContext.IsEditableItemKey.bindTo(this.contextKeyService);
 
-		this.instantiationService = this.instantiationService.createChild(
-			new ServiceCollection([IContextKeyService, this.contextKeyService]));
+		this.instantiationService = this._register(this.instantiationService.createChild(
+			new ServiceCollection([IContextKeyService, this.contextKeyService])));
 
 		this._register(this.configurationService.onDidChangeConfiguration(e => {
 			if (e.affectsConfiguration('search.sortOrder')) {
@@ -758,9 +758,9 @@ export class SearchView extends ViewPane {
 			return this.createFolderIterator(folderMatches[0], collapseResults, true);
 		}
 
-		return Iterable.map(folderMatches, folderMatch => {
+		return Iterable.map(folderMatches, (folderMatch): ICompressedTreeElement<RenderableMatch> => {
 			const children = this.createFolderIterator(folderMatch, collapseResults, true);
-			return <ICompressedTreeElement<RenderableMatch>>{ element: folderMatch, children, incompressible: true }; // roots should always be incompressible
+			return { element: folderMatch, children, incompressible: true }; // roots should always be incompressible
 		});
 	}
 
@@ -770,7 +770,7 @@ export class SearchView extends ViewPane {
 		const matchArray = this.isTreeLayoutViewVisible ? folderMatch.matches() : folderMatch.allDownstreamFileMatches();
 		const matches = matchArray.sort((a, b) => searchMatchComparer(a, b, sortOrder));
 
-		return Iterable.map(matches, match => {
+		return Iterable.map(matches, (match): ICompressedTreeElement<RenderableMatch> => {
 			let children;
 			if (match instanceof FileMatch) {
 				children = this.createFileIterator(match);
@@ -780,7 +780,7 @@ export class SearchView extends ViewPane {
 
 			const collapsed = (collapseResults === 'alwaysCollapse' || (match.count() > 10 && collapseResults !== 'alwaysExpand')) ? ObjectTreeElementCollapseState.PreserveOrCollapsed : ObjectTreeElementCollapseState.PreserveOrExpanded;
 
-			return <ICompressedTreeElement<RenderableMatch>>{ element: match, children, collapsed, incompressible: (match instanceof FileMatch) ? true : childFolderIncompressible };
+			return { element: match, children, collapsed, incompressible: (match instanceof FileMatch) ? true : childFolderIncompressible };
 		});
 	}
 
@@ -790,7 +790,7 @@ export class SearchView extends ViewPane {
 		if (!this.aiResultsVisible) {
 			matches = matches.filter(e => !e.aiContributed);
 		}
-		return Iterable.map(matches, r => (<ICompressedTreeElement<RenderableMatch>>{ element: r, incompressible: true }));
+		return Iterable.map(matches, (r): ICompressedTreeElement<RenderableMatch> => ({ element: r, incompressible: true }));
 	}
 
 	private createIterator(match: FolderMatch | FileMatch | SearchResult, collapseResults: ISearchConfigurationProperties['collapseResults']): Iterable<ICompressedTreeElement<RenderableMatch>> {
