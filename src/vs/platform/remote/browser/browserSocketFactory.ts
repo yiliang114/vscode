@@ -3,15 +3,15 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import * as dom from 'vs/base/browser/dom';
-import { RunOnceScheduler } from 'vs/base/common/async';
-import { VSBuffer } from 'vs/base/common/buffer';
-import { Emitter, Event } from 'vs/base/common/event';
-import { Disposable, IDisposable } from 'vs/base/common/lifecycle';
-import { ISocket, SocketCloseEvent, SocketCloseEventType, SocketDiagnostics, SocketDiagnosticsEventType } from 'vs/base/parts/ipc/common/ipc.net';
-import { ISocketFactory } from 'vs/platform/remote/common/remoteSocketFactoryService';
-import { RemoteAuthorityResolverError, RemoteAuthorityResolverErrorCode, RemoteConnectionType, WebSocketRemoteConnection } from 'vs/platform/remote/common/remoteAuthorityResolver';
-import { mainWindow } from 'vs/base/browser/window';
+import * as dom from '../../../base/browser/dom.js';
+import { RunOnceScheduler } from '../../../base/common/async.js';
+import { VSBuffer } from '../../../base/common/buffer.js';
+import { Emitter, Event } from '../../../base/common/event.js';
+import { Disposable, IDisposable } from '../../../base/common/lifecycle.js';
+import { ISocket, SocketCloseEvent, SocketCloseEventType, SocketDiagnostics, SocketDiagnosticsEventType } from '../../../base/parts/ipc/common/ipc.net.js';
+import { ISocketFactory } from '../common/remoteSocketFactoryService.js';
+import { RemoteAuthorityResolverError, RemoteAuthorityResolverErrorCode, RemoteConnectionType, WebSocketRemoteConnection } from '../common/remoteAuthorityResolver.js';
+import { mainWindow } from '../../../base/browser/window.js';
 
 export interface IWebSocketFactory {
 	create(url: string, debugLabel: string): IWebSocket;
@@ -270,6 +270,8 @@ export class BrowserSocketFactory implements ISocketFactory<RemoteConnectionType
 
 	private readonly _webSocketFactory: IWebSocketFactory;
 
+	// ws client 所在的 UI.
+	// code-server 的做法是，也没有传 webSocketFactory 作为初始值，而是直接走 defaultWebSocketFactory.
 	constructor(webSocketFactory: IWebSocketFactory | null | undefined) {
 		this._webSocketFactory = webSocketFactory || defaultWebSocketFactory;
 	}
@@ -278,9 +280,11 @@ export class BrowserSocketFactory implements ISocketFactory<RemoteConnectionType
 		return true;
 	}
 
+	//
 	connect({ host, port }: WebSocketRemoteConnection, path: string, query: string, debugLabel: string): Promise<ISocket> {
 		return new Promise<ISocket>((resolve, reject) => {
 			const webSocketSchema = (/^https:/.test(mainWindow.location.href) ? 'wss' : 'ws');
+			//
 			const socket = this._webSocketFactory.create(`${webSocketSchema}://${(/:/.test(host) && !/\[/.test(host)) ? `[${host}]` : host}:${port}${path}?${query}&skipWebSocketFrames=false`, debugLabel);
 			const errorListener = socket.onError(reject);
 			socket.onOpen(() => {

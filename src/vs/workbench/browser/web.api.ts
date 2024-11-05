@@ -3,22 +3,22 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import type { PerformanceMark } from 'vs/base/common/performance';
-import type { UriComponents, URI } from 'vs/base/common/uri';
-import type { IWebSocketFactory } from 'vs/platform/remote/browser/browserSocketFactory';
-import type { IURLCallbackProvider } from 'vs/workbench/services/url/browser/urlService';
-import type { LogLevel } from 'vs/platform/log/common/log';
-import type { IUpdateProvider } from 'vs/workbench/services/update/browser/updateService';
-import type { Event } from 'vs/base/common/event';
-import type { IProductConfiguration } from 'vs/base/common/product';
-import type { ISecretStorageProvider } from 'vs/platform/secrets/common/secrets';
-import type { TunnelProviderFeatures } from 'vs/platform/tunnel/common/tunnel';
-import type { IProgress, IProgressCompositeOptions, IProgressDialogOptions, IProgressNotificationOptions, IProgressOptions, IProgressStep, IProgressWindowOptions } from 'vs/platform/progress/common/progress';
-import type { ITextEditorOptions } from 'vs/platform/editor/common/editor';
-import type { IFolderToOpen, IWorkspaceToOpen } from 'vs/platform/window/common/window';
-import type { EditorGroupLayout } from 'vs/workbench/services/editor/common/editorGroupsService';
-import type { IEmbedderTerminalOptions } from 'vs/workbench/services/terminal/common/embedderTerminalService';
-import type { IAuthenticationProvider } from 'vs/workbench/services/authentication/common/authentication';
+import type { PerformanceMark } from '../../base/common/performance.js';
+import type { UriComponents, URI } from '../../base/common/uri.js';
+import type { IWebSocketFactory } from '../../platform/remote/browser/browserSocketFactory.js';
+import type { IURLCallbackProvider } from '../services/url/browser/urlService.js';
+import type { LogLevel } from '../../platform/log/common/log.js';
+import type { IUpdateProvider } from '../services/update/browser/updateService.js';
+import type { Event } from '../../base/common/event.js';
+import type { IProductConfiguration } from '../../base/common/product.js';
+import type { ISecretStorageProvider } from '../../platform/secrets/common/secrets.js';
+import type { TunnelProviderFeatures } from '../../platform/tunnel/common/tunnel.js';
+import type { IProgress, IProgressCompositeOptions, IProgressDialogOptions, IProgressNotificationOptions, IProgressOptions, IProgressStep, IProgressWindowOptions } from '../../platform/progress/common/progress.js';
+import type { ITextEditorOptions } from '../../platform/editor/common/editor.js';
+import type { IFolderToOpen, IWorkspaceToOpen } from '../../platform/window/common/window.js';
+import type { EditorGroupLayout } from '../services/editor/common/editorGroupsService.js';
+import type { IEmbedderTerminalOptions } from '../services/terminal/common/embedderTerminalService.js';
+import type { IAuthenticationProvider } from '../services/authentication/common/authentication.js';
 
 /**
  * The `IWorkbench` interface is the API facade for web embedders
@@ -151,6 +151,9 @@ export interface IWorkbenchConstructionOptions {
 	//#region Connection related configuration
 
 	/**
+	 * 同样的，remoteAuthority 也只会有一个，意味着远程连接只有一个。
+	 * 远程授权是为工作台提供服务的 IP:Port 地址. TODO: 比如 ws 远程连接。 但是这里说，ip + port 是不是意味着可以通过这样的方式做额外的远程连接，而不用只用本机的远程服务？
+	 *
 	 * The remote authority is the IP:PORT from where the workbench is served
 	 * from. It is for example being used for the websocket connections as address.
 	 */
@@ -164,6 +167,7 @@ export interface IWorkbenchConstructionOptions {
 	readonly serverBasePath?: string;
 
 	/**
+	 * 远程连接的 token，可以不通过密码等方式，建立远程连接。
 	 * The connection token to send to the server.
 	 */
 	readonly connectionToken?: string | Promise<string>;
@@ -175,6 +179,8 @@ export interface IWorkbenchConstructionOptions {
 	readonly webviewEndpoint?: string;
 
 	/**
+	 * FileSystem & Remote: 看起来是可以通过在 product.json 中配置一个 webSocket 的链接地址，让 web 与 node 建立连接，再通过 RemoteFileSystemXXX 进行通信和交互
+	 * 并且看起来，默认情况下只有一个连接，因为只留了一个口子。 TODO: 而如果需要同时连接两个实例的话，需要额外控制一个 ws 手动进行连接 ???
 	 * A factory for web sockets.
 	 */
 	readonly webSocketFactory?: IWebSocketFactory;
@@ -203,6 +209,9 @@ export interface IWorkbenchConstructionOptions {
 	readonly codeExchangeProxyEndpoints?: { [providerId: string]: string };
 
 	/**
+	 * TODO: 是不是做协同编辑的？
+	 *
+	 * 与当前工作区关联的编辑会话的标识符。
 	 * The identifier of an edit session associated with the current workspace.
 	 */
 	readonly editSessionId?: string;

@@ -3,21 +3,22 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { getErrorMessage } from 'vs/base/common/errors';
-import { Disposable, DisposableStore, IDisposable } from 'vs/base/common/lifecycle';
-import { Schemas } from 'vs/base/common/network';
-import { OperatingSystem } from 'vs/base/common/platform';
-import { IFileService } from 'vs/platform/files/common/files';
-import { DiskFileSystemProviderClient } from 'vs/platform/files/common/diskFileSystemProviderClient';
-import { ILogService } from 'vs/platform/log/common/log';
-import { IRemoteAgentEnvironment } from 'vs/platform/remote/common/remoteAgentEnvironment';
-import { IRemoteAgentConnection, IRemoteAgentService } from 'vs/workbench/services/remote/common/remoteAgentService';
+import { getErrorMessage } from '../../../../base/common/errors.js';
+import { Disposable, DisposableStore, IDisposable } from '../../../../base/common/lifecycle.js';
+import { Schemas } from '../../../../base/common/network.js';
+import { OperatingSystem } from '../../../../base/common/platform.js';
+import { IFileService } from '../../../../platform/files/common/files.js';
+import { DiskFileSystemProviderClient } from '../../../../platform/files/common/diskFileSystemProviderClient.js';
+import { ILogService } from '../../../../platform/log/common/log.js';
+import { IRemoteAgentEnvironment } from '../../../../platform/remote/common/remoteAgentEnvironment.js';
+import { IRemoteAgentConnection, IRemoteAgentService } from './remoteAgentService.js';
 
 export const REMOTE_FILE_SYSTEM_CHANNEL_NAME = 'remoteFilesystem';
 
 export class RemoteFileSystemProviderClient extends DiskFileSystemProviderClient {
 
 	static register(remoteAgentService: IRemoteAgentService, fileService: IFileService, logService: ILogService): IDisposable {
+		// 如果没有远程连接，就不会有 vscode-remote 这个文件系统。
 		const connection = remoteAgentService.getConnection();
 		if (!connection) {
 			return Disposable.None;
@@ -32,7 +33,10 @@ export class RemoteFileSystemProviderClient extends DiskFileSystemProviderClient
 					// Register remote fsp even before it is asked to activate
 					// because, some features (configuration) wait for its
 					// registration before making fs calls.
+					// TODO: 所以看起来 vscode-remote 这个 scheme 的文件系统 provider，首先是 vscode 原生提供，并且需要复用现有的 remote connection 的一个文件系统。
+					// 从 fsp 注册规则上来说， RemoteFileSystemProviderClient 是一个包含 readFile/writeFile... 之类的 class ？？
 					fileService.registerProvider(Schemas.vscodeRemote, disposables.add(new RemoteFileSystemProviderClient(environment, connection)));
+					// 文件系统只是复用 remote connection.
 				} else {
 					logService.error('Cannot register remote filesystem provider. Remote environment doesnot exist.');
 				}
@@ -51,6 +55,7 @@ export class RemoteFileSystemProviderClient extends DiskFileSystemProviderClient
 	}
 
 	private constructor(remoteAgentEnvironment: IRemoteAgentEnvironment, connection: IRemoteAgentConnection) {
+		// TODO: 如果我知道有一个 code-sevrer 实例的 node 提供的 ws 地址（并且鉴权也能通过的情况下），是否就能在 extension side 访问到这个文件系统？
 		super(connection.getChannel(REMOTE_FILE_SYSTEM_CHANNEL_NAME), { pathCaseSensitive: remoteAgentEnvironment.os === OperatingSystem.Linux });
 	}
 }

@@ -47,6 +47,7 @@ export class GitFileSystemProvider implements FileSystemProvider {
 		this.disposables.push(
 			model.onDidChangeRepository(this.onDidChangeRepository, this),
 			model.onDidChangeOriginalResource(this.onDidChangeOriginalResource, this),
+			// FS Scheme
 			workspace.registerFileSystemProvider('git', this, { isReadonly: true, isCaseSensitive: true }),
 		);
 

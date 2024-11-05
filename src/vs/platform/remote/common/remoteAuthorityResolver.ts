@@ -3,16 +3,16 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { ErrorNoTelemetry } from 'vs/base/common/errors';
-import { Event } from 'vs/base/common/event';
-import { URI } from 'vs/base/common/uri';
-import { createDecorator } from 'vs/platform/instantiation/common/instantiation';
+import { ErrorNoTelemetry } from '../../../base/common/errors.js';
+import { Event } from '../../../base/common/event.js';
+import { URI } from '../../../base/common/uri.js';
+import { createDecorator } from '../../instantiation/common/instantiation.js';
 
 export const IRemoteAuthorityResolverService = createDecorator<IRemoteAuthorityResolverService>('remoteAuthorityResolverService');
 
 export const enum RemoteConnectionType {
 	WebSocket,
-	Managed
+	Managed // TODO: 看到有一个 vscode-managed-remote-resource 与这里的 Managed 有什么关联
 }
 
 export class ManagedRemoteConnection {

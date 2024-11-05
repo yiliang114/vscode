@@ -4,15 +4,15 @@
  *--------------------------------------------------------------------------------------------*/
 
 // monaco 的 API 导出
-import 'vs/editor/editor.all';
+import './editor.all.js';
 // vs/editor/standalone 只是用来把核心编辑器独立打包成 Monaco 的一个壳。它不会被任何模块依赖。
-import 'vs/editor/standalone/browser/iPadShowKeyboard/iPadShowKeyboard'; // iPad 键盘
-import 'vs/editor/standalone/browser/inspectTokens/inspectTokens'; //
-import 'vs/editor/standalone/browser/quickAccess/standaloneHelpQuickAccess';
-import 'vs/editor/standalone/browser/quickAccess/standaloneGotoLineQuickAccess';
-import 'vs/editor/standalone/browser/quickAccess/standaloneGotoSymbolQuickAccess';
-import 'vs/editor/standalone/browser/quickAccess/standaloneCommandsQuickAccess';
-import 'vs/editor/standalone/browser/referenceSearch/standaloneReferenceSearch';
-import 'vs/editor/standalone/browser/toggleHighContrast/toggleHighContrast';
+import './standalone/browser/iPadShowKeyboard/iPadShowKeyboard.js'; // iPad 键盘
+import './standalone/browser/inspectTokens/inspectTokens.js';
+import './standalone/browser/quickAccess/standaloneHelpQuickAccess.js';
+import './standalone/browser/quickAccess/standaloneGotoLineQuickAccess.js';
+import './standalone/browser/quickAccess/standaloneGotoSymbolQuickAccess.js';
+import './standalone/browser/quickAccess/standaloneCommandsQuickAccess.js';
+import './standalone/browser/referenceSearch/standaloneReferenceSearch.js';
+import './standalone/browser/toggleHighContrast/toggleHighContrast.js';
 
-export * from 'vs/editor/editor.api';
+export * from './editor.api.js';

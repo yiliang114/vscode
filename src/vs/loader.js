@@ -693,6 +693,7 @@ var AMDLoader;
 			}
 			else {
 				const { trustedTypesPolicy } = moduleManager.getConfig().getOptionsLiteral();
+				//  FIXME: vscode 似乎有个问题， http 形式的资源加载，会导致 loader.js 加载多次 ?
 				const isCrossOrigin = (/^((http:)|(https:)|(file:))/.test(scriptSrc) && scriptSrc.substring(0, self.origin.length) !== self.origin);
 				if (!isCrossOrigin && this._canUseEval(moduleManager)) {
 					// use `fetch` if possible because `importScripts`

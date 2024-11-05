@@ -3,22 +3,22 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { IMessagePassingProtocol } from 'vs/base/parts/ipc/common/ipc';
-import { VSBuffer } from 'vs/base/common/buffer';
-import { Emitter } from 'vs/base/common/event';
-import { isMessageOfType, MessageType, createMessageOfType, IExtensionHostInitData } from 'vs/workbench/services/extensions/common/extensionHostProtocol';
-import { ExtensionHostMain } from 'vs/workbench/api/common/extensionHostMain';
-import { IHostUtils } from 'vs/workbench/api/common/extHostExtensionService';
-import { NestedWorker } from 'vs/workbench/services/extensions/worker/polyfillNestedWorker';
-import * as path from 'vs/base/common/path';
-import * as performance from 'vs/base/common/performance';
+import { IMessagePassingProtocol } from '../../../base/parts/ipc/common/ipc.js';
+import { VSBuffer } from '../../../base/common/buffer.js';
+import { Emitter } from '../../../base/common/event.js';
+import { isMessageOfType, MessageType, createMessageOfType, IExtensionHostInitData } from '../../services/extensions/common/extensionHostProtocol.js';
+import { ExtensionHostMain } from '../common/extensionHostMain.js';
+import { IHostUtils } from '../common/extHostExtensionService.js';
+import { NestedWorker } from '../../services/extensions/worker/polyfillNestedWorker.js';
+import * as path from '../../../base/common/path.js';
+import * as performance from '../../../base/common/performance.js';
 
 // 加载扩展进程公共服务
-import 'vs/workbench/api/common/extHost.common.services';
+import '../common/extHost.common.services.js';
 // 加载扩展进程 Worker 中的服务
-import 'vs/workbench/api/worker/extHost.worker.services';
-import { FileAccess } from 'vs/base/common/network';
-import { URI } from 'vs/base/common/uri';
+import './extHost.worker.services.js';
+import { FileAccess } from '../../../base/common/network.js';
+import { URI } from '../../../base/common/uri.js';
 
 //#region --- Define, capture, and override some globals
 
@@ -260,6 +260,10 @@ function isInitMessage(a: any): a is IInitMessage {
 // TODO: 暂时未知是哪里触发的。
 // 在 workerMain.ts 中触发，该模块被 AMD Loader 加载之后，拿到句柄，调用 create() 执行后续的逻辑
 // 由浏览器端，通过 Web Worker 实现的扩展宿主进程
+/**
+ * Defines the worker entry point. Must be exported and named `create`.
+ * @skipMangle
+ */
 export function create(): { onmessage: (message: any) => void } {
 	performance.mark(`code/extHost/willConnectToRenderer`);
 	// 初始化 worker，最重要的事：

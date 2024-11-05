@@ -7,7 +7,7 @@
 
 const cp = require('child_process');
 const path = require('path');
-const opn = require('opn');
+const open = require('open');
 const minimist = require('minimist');
 
 async function main() {
@@ -35,7 +35,7 @@ async function main() {
 	const addr = await startServer(serverArgs);
 	// 启动浏览器
 	if (args['launch']) {
-		opn(addr);
+		open(addr);
 	}
 }
 
@@ -73,4 +73,3 @@ function startServer(programArgs) {
 }
 
 main();
-

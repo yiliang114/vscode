@@ -91,6 +91,7 @@ export default class LanguageProvider extends Disposable {
 			import('./languageFeatures/sourceDefinition').then(provider => this._register(provider.register(this.client, this.commandManager))),
 			import('./languageFeatures/tagClosing').then(provider => this._register(provider.register(selector, this.description, this.client))),
 			import('./languageFeatures/typeDefinitions').then(provider => this._register(provider.register(selector, this.client))),
+			import('./languageFeatures/copilotRelated').then(provider => this._register(provider.register(selector, this.client))),
 		]);
 	}
 
@@ -138,7 +139,11 @@ export default class LanguageProvider extends Disposable {
 		this.client.bufferSyncSupport.requestAllDiagnostics();
 	}
 
-	public diagnosticsReceived(diagnosticsKind: DiagnosticKind, file: vscode.Uri, diagnostics: (vscode.Diagnostic & { reportUnnecessary: any; reportDeprecated: any })[]): void {
+	public diagnosticsReceived(
+		diagnosticsKind: DiagnosticKind,
+		file: vscode.Uri,
+		diagnostics: (vscode.Diagnostic & { reportUnnecessary: any; reportDeprecated: any })[],
+		ranges: vscode.Range[] | undefined): void {
 		if (diagnosticsKind !== DiagnosticKind.Syntax && !this.client.hasCapabilityForResource(file, ClientCapability.Semantic)) {
 			return;
 		}
@@ -175,7 +180,7 @@ export default class LanguageProvider extends Disposable {
 				}
 			}
 			return true;
-		}));
+		}), ranges);
 	}
 
 	public configFileDiagnosticsReceived(file: vscode.Uri, diagnostics: vscode.Diagnostic[]): void {
