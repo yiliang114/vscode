@@ -1116,6 +1116,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			},
 			registerFileSystemProvider(scheme, provider, options) {
 				return combinedDisposable(
+					// TODO: 这里为什么有连个 extHost 来着，我知道扩展注册的 fsp 会存在中间的宿主环境中，不会与底座提供的 fsp 合并。
 					// 扩展进程文件系统注册
 					extHostFileSystem.registerFileSystemProvider(extension, scheme, provider, options),
 					// TODO: 扩展消费者文件系统？ 单纯只是记录了 scheme 对应的 provider

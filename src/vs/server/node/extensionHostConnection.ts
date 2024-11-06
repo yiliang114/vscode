@@ -69,6 +69,7 @@ export async function buildUserEnvironment(startParamsEnv: { [key: string]: stri
 
 class ConnectionData {
 	constructor(
+		// TODO: NodeSocket 是什么？与 WebSocketNodeSocket 区别是什么？
 		public readonly socket: NodeSocket | WebSocketNodeSocket,
 		public readonly initialDataChunk: VSBuffer
 	) { }

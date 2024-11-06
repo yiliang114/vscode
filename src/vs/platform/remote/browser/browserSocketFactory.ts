@@ -280,11 +280,10 @@ export class BrowserSocketFactory implements ISocketFactory<RemoteConnectionType
 		return true;
 	}
 
-	//
 	connect({ host, port }: WebSocketRemoteConnection, path: string, query: string, debugLabel: string): Promise<ISocket> {
 		return new Promise<ISocket>((resolve, reject) => {
 			const webSocketSchema = (/^https:/.test(mainWindow.location.href) ? 'wss' : 'ws');
-			//
+			// 浏览器发起的 ws 连接，服务端由 node 提供。
 			const socket = this._webSocketFactory.create(`${webSocketSchema}://${(/:/.test(host) && !/\[/.test(host)) ? `[${host}]` : host}:${port}${path}?${query}&skipWebSocketFrames=false`, debugLabel);
 			const errorListener = socket.onError(reject);
 			socket.onOpen(() => {

@@ -46,6 +46,7 @@ const extensionInstallArgs = ['install-extension', 'install-builtin-extension', 
 
 const shouldSpawnCli = parsedArgs.help || parsedArgs.version || extensionLookupArgs.some(a => !!parsedArgs[a]) || (extensionInstallArgs.some(a => !!parsedArgs[a]) && !parsedArgs['start-server']);
 
+// 处理国际化配置信息
 const nlsConfiguration = await resolveNLSConfiguration({ userLocale: 'en', osLocale: 'en', commit: product.commit, userDataPath: '', nlsMetadataPath: __dirname });
 
 // 处理 cli 传入的命令
@@ -107,6 +108,7 @@ if (shouldSpawnCli) {
 			perf.mark('code/server/firstWebSocket');
 		}
 		const remoteExtensionHostAgentServer = await getRemoteExtensionHostAgentServer();
+		// 接收到 upgrade 消息时的响应
 		// @ts-ignore
 		return remoteExtensionHostAgentServer.handleUpgrade(req, socket);
 	});

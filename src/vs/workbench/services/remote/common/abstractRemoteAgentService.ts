@@ -38,6 +38,9 @@ export abstract class AbstractRemoteAgentService extends Disposable implements I
 		@ILogService logService: ILogService
 	) {
 		super();
+		// 根据 remoteAuthority 保存一个远程连接 connection。
+		// TODO: 所以大致可以推断出来，一个实例默认肯定只能链接一个 node 后端服务，因为这里会直接涉及到很多 node 运行时获取文件 uri、执行命令响应的来源问题。
+		// 那如果需要 web 连接两个原生的文件系统（由另一个 code-server 提供的原生文件系统），应该需要从 ws 连接的 token 上来做文章？
 		if (this._environmentService.remoteAuthority) {
 			this._connection = this._register(new RemoteAgentConnection(this._environmentService.remoteAuthority, productService.commit, productService.quality, this.remoteSocketFactoryService, this._remoteAuthorityResolverService, signService, logService));
 		} else {
@@ -192,6 +195,7 @@ class RemoteAgentConnection extends Disposable implements IRemoteAgentConnection
 		return this._initialConnectionMs!;
 	}
 
+	// 注册 channel、获取连接延迟等很多操作都需要先获取 connection。
 	private _getOrCreateConnection(): Promise<Client<RemoteAgentConnectionContext>> {
 		if (!this._connection) {
 			this._connection = this._createConnection();
@@ -204,6 +208,7 @@ class RemoteAgentConnection extends Disposable implements IRemoteAgentConnection
 		const options: IConnectionOptions = {
 			commit: this._commit,
 			quality: this._quality,
+			// 远程代理地址信息提供
 			addressProvider: {
 				getAddress: async () => {
 					if (firstCall) {
@@ -211,6 +216,7 @@ class RemoteAgentConnection extends Disposable implements IRemoteAgentConnection
 					} else {
 						this._onReconnecting.fire(undefined);
 					}
+					//
 					const { authority } = await this._remoteAuthorityResolverService.resolveAuthority(this.remoteAuthority);
 					return { connectTo: authority.connectTo, connectionToken: authority.connectionToken };
 				}
@@ -223,6 +229,7 @@ class RemoteAgentConnection extends Disposable implements IRemoteAgentConnection
 		let connection: ManagementPersistentConnection;
 		const start = Date.now();
 		try {
+			// 建立 ws 连接
 			connection = this._register(await connectRemoteAgentManagement(options, this.remoteAuthority, `renderer`));
 		} finally {
 			this._initialConnectionMs = Date.now() - start;

@@ -76,8 +76,13 @@ interface ISimpleConnectionOptions<T extends RemoteConnection = RemoteConnection
 	commit: string | undefined;
 	quality: string | undefined;
 	connectTo: T;
+	// TODO: 首次连接的 token？ 一段时间之后，会自动断开再次连接一次？
 	connectionToken: string | undefined;
+	// example str GET ws://localhost/oss-dev?reconnectionToken=4354a323-a45a-452c-b5d7-d8d586e1cd5c&reconnection=false&skipWebSocketFrames=true HTTP/1.1
+	// TODO: 多久没有响应之后会自动断开，断开之前会提前告知下一次连接所需的 token？？
+	// 哪里产生的？ 如何鉴权的？
 	reconnectionToken: string;
+	// TODO: ?? 难道不是 ws or wss 的区别
 	reconnectionProtocol: PersistentProtocol | null;
 	remoteSocketFactoryService: IRemoteSocketFactoryService;
 	signService: ISignService;
@@ -232,6 +237,7 @@ async function connectToRemoteExtensionHostAgent<T extends RemoteConnection>(opt
 
 	let socket: ISocket;
 	try {
+		// 浏览器发起 ws 连接
 		socket = await createSocket(options.logService, options.remoteSocketFactoryService, options.connectTo, RemoteAuthorities.getServerRootPath(), `reconnectionToken=${options.reconnectionToken}&reconnection=${options.reconnectionProtocol ? 'true' : 'false'}`, connectionTypeToString(connectionType), `renderer-${connectionTypeToString(connectionType)}-${options.reconnectionToken}`, timeoutCancellationToken);
 	} catch (error) {
 		options.logService.error(`${logPrefix} socketFactory.connect() failed or timed out. Error:`);
@@ -243,6 +249,9 @@ async function connectToRemoteExtensionHostAgent<T extends RemoteConnection>(opt
 
 	let protocol: PersistentProtocol;
 	let ownsProtocol: boolean;
+
+	// 浏览器端通过 socket 创建 PersistentProtocol
+	// TODO: 重连协议？
 	if (options.reconnectionProtocol) {
 		options.reconnectionProtocol.beginAcceptReconnection(socket, null);
 		protocol = options.reconnectionProtocol;
@@ -433,6 +442,9 @@ export async function connectRemoteAgentExtensionHost(options: IConnectionOption
 
 /**
  * Will attempt to connect 5 times. If it fails 5 consecutive times, it will give up.
+ *
+ * 将尝试连接5次。如果连续5次失败，它将放弃。 TODO: 似乎是远程连接的入口？？？ 还是说实际上会建立多个 ws 连接？
+ * 至少看起来 RemoteAgentManagement 和 ExtensionHostPersistentConnection 都是直接建立ws连接，是两个独立的连接。
  */
 async function createInitialConnection<T extends PersistentConnection, O extends RemoteConnection>(options: IConnectionOptions<O>, connectionFactory: (simpleOptions: ISimpleConnectionOptions<O>) => Promise<T>): Promise<T> {
 	const MAX_ATTEMPTS = 5;
@@ -618,6 +630,7 @@ export abstract class PersistentConnection extends Disposable {
 
 	private async _beginReconnecting(): Promise<void> {
 		// Only have one reconnection loop active at a time.
+		// 一次只有一个重新连接循环处于活动状态。
 		if (this._isReconnecting) {
 			return;
 		}
@@ -661,8 +674,10 @@ export abstract class PersistentConnection extends Disposable {
 				// connection was lost, let's try to re-establish it
 				this._onDidStateChange.fire(new ReconnectionRunningEvent(this.reconnectionToken, this.protocol.getMillisSinceLastIncomingData(), attempt + 1));
 				this._options.logService.info(`${logPrefix} resolving connection...`);
+				// 组装 ws remote connection 配置选项信息
 				const simpleOptions = await resolveConnectionOptions(this._options, this.reconnectionToken, this.protocol);
 				this._options.logService.info(`${logPrefix} connecting to ${simpleOptions.connectTo}...`);
+				// 尝试重连
 				await this._reconnect(simpleOptions, createTimeoutCancellation(RECONNECT_TIMEOUT));
 				this._options.logService.info(`${logPrefix} reconnected!`);
 				this._onDidStateChange.fire(new ConnectionGainEvent(this.reconnectionToken, this.protocol.getMillisSinceLastIncomingData(), attempt + 1));

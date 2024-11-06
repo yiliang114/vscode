@@ -33,6 +33,7 @@ export abstract class AbstractDiskFileSystemProviderChannel<T> extends Disposabl
 		super();
 	}
 
+	// 消息通过 channel 转发进入 node 中 fs provider，做对应的操作之后再返回数据。
 	call(ctx: T, command: string, arg?: any): Promise<any> {
 		const uriTransformer = this.getUriTransformer(ctx);
 
@@ -59,7 +60,7 @@ export abstract class AbstractDiskFileSystemProviderChannel<T> extends Disposabl
 
 	listen(ctx: T, event: string, arg: any): Event<any> {
 		const uriTransformer = this.getUriTransformer(ctx);
-
+		// TODO: 这部分是否是原生文件系统内容变更的响应关键
 		switch (event) {
 			case 'fileChange': return this.onFileChange(uriTransformer, arg[0]);
 			case 'readFileStream': return this.onReadFileStream(uriTransformer, arg[0], arg[1]);

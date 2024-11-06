@@ -159,6 +159,8 @@ export class RPCProtocol extends Disposable implements IRPCProtocol {
 		this._unacknowledgedCount = 0;
 		this._unresponsiveTime = 0;
 		this._asyncCheckUresponsive = this._register(new RunOnceScheduler(() => this._checkUnresponsive(), 1000));
+		// send 函数是在 _remoteCall 里被执行的，在 RPCProtocol 实例外部，只管发送。 而这里 RPCProtocol 实例接收消息的时候的响应，只管接收，消息解析完毕之后，会填充到对应的 rpcId ？？里
+		// 再填充 LazyPromise 的数据，以达到类似 “本地调用” 的效果。也正是因为所以的 rpc 请求发送和接收都会经过序列化，所以只能发送能够被序列化反序列化的数据，特殊的对象等参数无法传递。
 		this._register(this._protocol.onMessage((msg) => this._receiveOneMessage(msg)));
 	}
 
@@ -285,6 +287,7 @@ export class RPCProtocol extends Disposable implements IRPCProtocol {
 		}
 	}
 
+	// 解析 rpc 调用的返回结果
 	private _receiveOneMessage(rawmsg: VSBuffer): void {
 		if (this._isDisposed) {
 			return;
@@ -389,6 +392,7 @@ export class RPCProtocol extends Disposable implements IRPCProtocol {
 
 		promise.then((r) => {
 			delete this._cancelInvokedHandlers[callId];
+			// 序列化正常的返回结果
 			const msg = MessageIO.serializeReplyOK(req, r, this._uriReplacer);
 			this._logger?.logOutgoing(msg.byteLength, req, RequestInitiator.OtherSide, `reply:`, r);
 			this._protocol.send(msg);
@@ -479,6 +483,7 @@ export class RPCProtocol extends Disposable implements IRPCProtocol {
 			return Promise.reject<any>(errors.canceled());
 		}
 
+		// rpc 调用的函数名和参数都会被序列化后，通过 buffer 进行传输。
 		const serializedRequestArguments = MessageIO.serializeRequestArguments(args, this._uriReplacer);
 
 		const req = ++this._lastMessageId;
@@ -496,8 +501,10 @@ export class RPCProtocol extends Disposable implements IRPCProtocol {
 
 		this._pendingRPCReplies[callId] = new PendingRPCReply(result, disposable);
 		this._onWillSendRequest(req);
+		// 序列化请求
 		const msg = MessageIO.serializeRequest(req, rpcId, methodName, serializedRequestArguments, !!cancellationToken);
 		this._logger?.logOutgoing(msg.byteLength, req, RequestInitiator.LocalSide, `request: ${getStringIdentifierForProxy(rpcId)}.${methodName}(`, args);
+		// 发送消息
 		this._protocol.send(msg);
 		return result;
 	}
@@ -762,6 +769,7 @@ class MessageIO {
 		};
 	}
 
+	// 序列化请求
 	public static serializeRequest(req: number, rpcId: number, method: string, serializedArgs: SerializedRequestArguments, usesCancellationToken: boolean): VSBuffer {
 		switch (serializedArgs.type) {
 			case SerializedRequestArgumentType.Simple:
@@ -780,6 +788,7 @@ class MessageIO {
 		len += MessageBuffer.sizeShortString(methodBuff);
 		len += MessageBuffer.sizeLongString(argsBuff);
 
+		// 分配一个新的 MessageBuffer 对象
 		const result = MessageBuffer.alloc(usesCancellationToken ? MessageType.RequestJSONArgsWithCancellation : MessageType.RequestJSONArgs, req, len);
 		result.writeUInt8(rpcId);
 		result.writeShortString(methodBuff);
@@ -871,6 +880,7 @@ class MessageIO {
 		return buff.readVSBuffer();
 	}
 
+	// 序列化返回结果
 	private static _serializeReplyOKJSON(req: number, res: string): VSBuffer {
 		const resBuff = VSBuffer.fromString(res);
 

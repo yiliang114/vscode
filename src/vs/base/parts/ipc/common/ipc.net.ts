@@ -280,28 +280,37 @@ function protocolMessageTypeToString(messageType: ProtocolMessageType) {
 	}
 }
 
+// 协议常量
 export const enum ProtocolConstants {
 	HeaderLength = 13,
 	/**
 	 * Send an Acknowledge message at most 2 seconds later...
+	 * 最多2秒后发送确认消息...
 	 */
 	AcknowledgeTime = 2000, // 2 seconds
 	/**
 	 * If there is a sent message that has been unacknowledged for 20 seconds,
 	 * and we didn't see any incoming server data in the past 20 seconds,
 	 * then consider the connection has timed out.
+	 * 如果有已发送的消息在20秒内未被确认，
+	 * 在过去的20秒内，我们没有看到任何传入的服务器数据，
+	 * 然后考虑连接已超时。
 	 */
 	TimeoutTime = 20000, // 20 seconds
 	/**
 	 * If there is no reconnection within this time-frame, consider the connection permanently closed...
+	 * 如果在此时间范围内没有重新连接，请考虑连接永久关闭...
 	 */
 	ReconnectionGraceTime = 3 * 60 * 60 * 1000, // 3hrs
 	/**
 	 * Maximal grace time between the first and the last reconnection...
+	 * 第一次和最后一次重新连接之间的最大宽限期...
 	 */
 	ReconnectionShortGraceTime = 5 * 60 * 1000, // 5min
 	/**
 	 * Send a message every 5 seconds to avoid that the connection is closed by the OS.
+	 * 每5秒发送一条消息，以避免连接被操作系统关闭。
+	 * 类似健康检查，保活
 	 */
 	KeepAliveSendTime = 5000, // 5 seconds
 }

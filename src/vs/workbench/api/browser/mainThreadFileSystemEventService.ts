@@ -50,6 +50,7 @@ export class MainThreadFileSystemEventService implements MainThreadFileSystemEve
 		this._proxy = extHostContext.getProxy(ExtHostContext.ExtHostFileSystemEventService);
 
 		this._listener.add(_fileService.onDidFilesChange(event => {
+			// 会通过 ws 中会发送消息，经过压缩之后的编码，内容会被转化为二进制的编码。
 			this._proxy.$onFileEvent({
 				created: event.rawAdded,
 				changed: event.rawUpdated,

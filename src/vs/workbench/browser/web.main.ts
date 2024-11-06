@@ -213,7 +213,7 @@ export class BrowserMain extends Disposable {
 						if (!this.configuration.remoteAuthority) {
 							return;
 						}
-
+						// TODO: remoteAuthority 看起来是由 xxx 提供？
 						await remoteAuthorityResolverService.resolveAuthority(this.configuration.remoteAuthority);
 					},
 					openTunnel: async tunnelOptions => {
@@ -259,6 +259,7 @@ export class BrowserMain extends Disposable {
 		this._register(workbench.onDidShutdown(() => this.dispose()));
 	}
 
+	// TODO: 对于 code-server 而言，开始为入口会建立一个 ws 连接
 	private async initServices(): Promise<{ serviceCollection: ServiceCollection; configurationService: IWorkbenchConfigurationService; logService: ILogService }> {
 		const serviceCollection = new ServiceCollection();
 
@@ -281,6 +282,8 @@ export class BrowserMain extends Disposable {
 
 		// Environment
 		const logsPath = URI.file(toLocalISOString(new Date()).replace(/-|:|\.\d+Z$/g, '')).with({ scheme: 'vscode-log' });
+
+		// TODO: 个人 code-server 与公共 code-server 的版本信息可能会不一定想陪？ vscode 的版本也说不定会有差异。
 		const environmentService = new BrowserWorkbenchEnvironmentService(workspace.id, logsPath, this.configuration, productService);
 		serviceCollection.set(IBrowserWorkbenchEnvironmentService, environmentService);
 
@@ -314,6 +317,7 @@ export class BrowserMain extends Disposable {
 		const connectionToken = environmentService.options.connectionToken || getCookieValue(connectionTokenCookieName);
 		const remoteResourceLoader = this.configuration.remoteResourceProvider ? new BrowserRemoteResourceLoader(fileService, this.configuration.remoteResourceProvider) : undefined;
 		const resourceUriProvider = this.configuration.resourceUriProvider ?? remoteResourceLoader?.getResourceUriProvider();
+		//
 		const remoteAuthorityResolverService = new RemoteAuthorityResolverService(!environmentService.expectsResolverExtension, connectionToken, resourceUriProvider, this.configuration.serverBasePath, productService, logService);
 		serviceCollection.set(IRemoteAuthorityResolverService, remoteAuthorityResolverService);
 
@@ -350,6 +354,8 @@ export class BrowserMain extends Disposable {
 		const remoteSocketFactoryService = new RemoteSocketFactoryService();
 		remoteSocketFactoryService.register(RemoteConnectionType.WebSocket, new BrowserSocketFactory(this.configuration.webSocketFactory));
 		serviceCollection.set(IRemoteSocketFactoryService, remoteSocketFactoryService);
+
+		// 浏览器端远程服务，提供 ws 连接的配置信息等。
 		const remoteAgentService = this._register(new RemoteAgentService(remoteSocketFactoryService, userDataProfileService, environmentService, productService, remoteAuthorityResolverService, signService, logService));
 		serviceCollection.set(IRemoteAgentService, remoteAgentService);
 		this._register(RemoteFileSystemProviderClient.register(remoteAgentService, fileService, logService));

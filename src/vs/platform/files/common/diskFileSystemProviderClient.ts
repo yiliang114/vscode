@@ -74,6 +74,7 @@ export class DiskFileSystemProviderClient extends Disposable implements
 
 	//#region File Metadata Resolving
 
+	// 通过 channel 远程调用 call 在 node 完成相关的操作之后拿到的结果，会作为给 vscode-remote fsp 相关函数的返回
 	stat(resource: URI): Promise<IStat> {
 		return this.channel.call('stat', [resource]);
 	}

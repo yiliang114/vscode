@@ -50,6 +50,7 @@ export class FileService extends Disposable implements IFileService {
 	private readonly provider = new Map<string, IFileSystemProvider>();
 
 	registerProvider(scheme: string, provider: IFileSystemProvider): IDisposable {
+		// 默认情况下，fs 同一个 scheme 是不能注册多次的。
 		if (this.provider.has(scheme)) {
 			throw new Error(`A filesystem provider for the scheme '${scheme}' is already registered.`);
 		}
@@ -58,6 +59,7 @@ export class FileService extends Disposable implements IFileService {
 
 		const providerDisposables = new DisposableStore();
 
+		// vscode 底座中的 fs Service，并非扩展宿主中存在的 fs Service, 提供给 sdk 使用的 fs 中间会存一份适配？？ 又或者是兼容层，不是直接访问扩展提供的 fsp 实例对象。
 		// Add provider with event
 		this.provider.set(scheme, provider);
 		this._onDidChangeFileSystemProviderRegistrations.fire({ added: true, scheme, provider });

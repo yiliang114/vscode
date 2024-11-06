@@ -181,6 +181,7 @@ class RemoteExtensionHostAgentServer extends Disposable implements IServerAPI {
 	}
 
 	public handleUpgrade(req: http.IncomingMessage, socket: net.Socket) {
+		// 生成 reconnectionToken. 然后会返回给前端 ui
 		let reconnectionToken = generateUuid();
 		let isReconnection = false;
 		let skipWebSocketFrames = false;
@@ -190,14 +191,17 @@ class RemoteExtensionHostAgentServer extends Disposable implements IServerAPI {
 			if (typeof query.reconnectionToken === 'string') {
 				reconnectionToken = query.reconnectionToken;
 			}
+			// 设置好不是重连？
 			if (query.reconnection === 'true') {
 				isReconnection = true;
 			}
+			// TODO: 作用是？
 			if (query.skipWebSocketFrames === 'true') {
 				skipWebSocketFrames = true;
 			}
 		}
 
+		// 不支持响应 ws.
 		if (req.headers['upgrade'] === undefined || req.headers['upgrade'].toLowerCase() !== 'websocket') {
 			socket.end('HTTP/1.1 400 Bad Request');
 			return;
@@ -209,6 +213,7 @@ class RemoteExtensionHostAgentServer extends Disposable implements IServerAPI {
 		hash.update(requestNonce + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11');
 		const responseNonce = hash.digest('base64');
 
+		// http 请求响应，并且因为请求头中携带的 upgrade 字段，将该请求升级为 websocket 请求， 返回 101 状态吗
 		const responseHeaders = [
 			`HTTP/1.1 101 Switching Protocols`,
 			`Upgrade: websocket`,
@@ -246,6 +251,8 @@ class RemoteExtensionHostAgentServer extends Disposable implements IServerAPI {
 		socket.setNoDelay(true);
 		// Finally!
 
+		// 允许从 HTTP 协议切换到 WebSocket 协议.
+		// NodeSocket 和 WebSocketNodeSocket 接口实现差异，看起来只是上报数据？？？？ 的方式差异？
 		if (skipWebSocketFrames) {
 			this._handleWebSocketConnection(new NodeSocket(socket, `server-connection-${reconnectionToken}`), isReconnection, reconnectionToken);
 		} else {
@@ -427,8 +434,9 @@ class RemoteExtensionHostAgentServer extends Disposable implements IServerAPI {
 			// This should become a management connection
 
 			if (isReconnection) {
-				// This is a reconnection
+				// This is a reconnection TODO: 这是一个重新连接
 				if (!this._managementConnections[reconnectionToken]) {
+					// reconnectionToken 看起来的作用是在这里，node 里会维护一个 map，用于辨别是否是之前建立过的连接？？ TODO: 何时写入？ 如何辨别？
 					if (!this._allReconnectionTokens.has(reconnectionToken)) {
 						// This is an unknown reconnection token
 						return this._rejectWebSocketConnection(logPrefix, protocol, `Unknown reconnection token (never seen)`);
@@ -445,7 +453,7 @@ class RemoteExtensionHostAgentServer extends Disposable implements IServerAPI {
 				this._managementConnections[reconnectionToken].acceptReconnection(remoteAddress, socket, dataChunk);
 
 			} else {
-				// This is a fresh connection
+				// This is a fresh connection 这是一个新的连接
 				if (this._managementConnections[reconnectionToken]) {
 					// Cannot have two concurrent connections using the same reconnection token
 					return this._rejectWebSocketConnection(logPrefix, protocol, `Duplicate reconnection token`);
@@ -453,6 +461,7 @@ class RemoteExtensionHostAgentServer extends Disposable implements IServerAPI {
 
 				protocol.sendControl(VSBuffer.fromString(JSON.stringify({ type: 'ok' })));
 				const con = new ManagementConnection(this._logService, reconnectionToken, remoteAddress, protocol);
+				// node 端会接受该连接
 				this._socketServer.acceptConnection(con.protocol, con.onClose);
 				this._managementConnections[reconnectionToken] = con;
 				this._allReconnectionTokens.add(reconnectionToken);

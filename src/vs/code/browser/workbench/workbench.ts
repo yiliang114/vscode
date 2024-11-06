@@ -590,6 +590,7 @@ function readCookie(name: string): string | undefined {
 		? new ServerKeyedAESCrypto(secretStorageKeyPath) : new TransparentCrypto();
 
 	// Create workbench 创建 DOM 结构， 挂载到 body 中。。。
+	// code-server 中，第二个参数信息里包含 remoteAuthority 用于远程连接。对于 code-server 来说 TODO: 目前是被设置为 window.location.host？ 但是看起来不一定对
 	create(mainWindow.document.body, {
 		...config,
 		windowIndicator: config.windowIndicator ?? { label: '$(remote)', tooltip: `${product.nameShort} Web` },

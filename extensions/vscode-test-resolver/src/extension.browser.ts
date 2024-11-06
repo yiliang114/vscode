@@ -88,6 +88,7 @@ class OpeningManagedMessagePassing {
 		closeEmitter: vscode.EventEmitter<Error | undefined>,
 		_endEmitter: vscode.EventEmitter<void>
 	) {
+		// 这个端口号看起来是 code-server 启动的。
 		this.socket = new WebSocket(`ws://localhost:9888${url.pathname}${url.search.replace(/skipWebSocketFrames=true/, 'skipWebSocketFrames=false')}`);
 		this.socket.addEventListener('close', () => closeEmitter.fire(undefined));
 		this.socket.addEventListener('error', (e) => closeEmitter.fire(new Error(String(e))));

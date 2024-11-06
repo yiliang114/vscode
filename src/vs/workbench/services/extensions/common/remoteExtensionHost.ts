@@ -89,6 +89,7 @@ export class RemoteExtensionHost extends Disposable implements IExtensionHost {
 		const options: IConnectionOptions = {
 			commit: this._productService.commit,
 			quality: this._productService.quality,
+			// 远程代理地址提供
 			addressProvider: {
 				getAddress: async () => {
 					const { authority } = await this.remoteAuthorityResolverService.resolveAuthority(this._initDataProvider.remoteAuthority);
@@ -124,6 +125,7 @@ export class RemoteExtensionHost extends Disposable implements IExtensionHost {
 				startParams.break = false;
 			}
 
+			// 连接远程代理扩展主机
 			return connectRemoteAgentExtensionHost(options, startParams).then(result => {
 				this._register(result);
 				const { protocol, debugPort, reconnectionToken } = result;
@@ -199,6 +201,7 @@ export class RemoteExtensionHost extends Disposable implements IExtensionHost {
 			return;
 		}
 
+		// 获取远程扩展主机的退出信息。
 		this._onExit.fire([0, reconnectionToken]);
 	}
 

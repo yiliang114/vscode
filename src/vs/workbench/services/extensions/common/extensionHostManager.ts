@@ -115,6 +115,7 @@ export class ExtensionHostManager extends Disposable implements IExtensionHostMa
 		this._telemetryService.publicLog2<ExtensionHostStartupEvent, ExtensionHostStartupClassification>('extensionHostStartup', startingTelemetryEvent);
 
 		// 扩展 host ？启动之后，透出一个 protocol？
+		// 如果需要的话，扩展宿主需要通过 ws 连接远程，这与 RemoteAgentService 是两个服务进程，但是原理上是一样的。
 		this._proxy = this._extensionHost.start().then(
 			(protocol) => {
 				this._hasStarted = true;
@@ -259,6 +260,7 @@ export class ExtensionHostManager extends Disposable implements IExtensionHostMa
 		const extHostContext: IInternalExtHostContext = {
 			remoteAuthority: this._extensionHost.remoteAuthority,
 			extensionHostKind: this.kind,
+			//
 			getProxy: <T>(identifier: ProxyIdentifier<T>): Proxied<T> => this._rpcProtocol!.getProxy(identifier),
 			set: <T, R extends T>(identifier: ProxyIdentifier<T>, instance: R): R => this._rpcProtocol!.set(identifier, instance),
 			dispose: (): void => this._rpcProtocol!.dispose(),

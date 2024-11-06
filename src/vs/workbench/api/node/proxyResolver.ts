@@ -91,6 +91,7 @@ export function connectProxyResolver(
 	return configureModuleLoading(extensionService, lookup);
 }
 
+// TODO:
 const unsafeHeaders = [
 	'content-length',
 	'host',

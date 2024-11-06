@@ -43,6 +43,8 @@ export class BrowserWorkbenchEnvironmentService implements IBrowserWorkbenchEnvi
 
 	declare readonly _serviceBrand: undefined;
 
+	// 有缓存的配置信息获取，从 create Workbench 时作为第二个参数传入的配置。
+	// 从 code-server 看，最终这个配置值是: remoteAuthority: "remote"
 	@memoize
 	get remoteAuthority(): string | undefined { return this.options.remoteAuthority; }
 

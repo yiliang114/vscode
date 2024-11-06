@@ -401,6 +401,7 @@ export class SCMService implements ISCMService {
 			return this._repositories.get(idOrResource);
 		}
 
+		// 默认只支持 file 和 vscode-remote 两个 scheme 的文件系统。
 		if (idOrResource.scheme !== Schemas.file &&
 			idOrResource.scheme !== Schemas.vscodeRemote) {
 			return undefined;

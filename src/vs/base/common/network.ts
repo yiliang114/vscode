@@ -53,6 +53,7 @@ export namespace Schemas {
 
 	export const vscodeRemote = 'vscode-remote';
 
+	// 读取服务端运行环境的文件内容。 eg. http://127.0.0.1:8080/stable-760d1318e98945d05133c6121f99541ca7a39bf8/vscode-remote-resource?path=xxxx
 	export const vscodeRemoteResource = 'vscode-remote-resource'; // TODO: 与 vscodeRemote 区别？
 
 	export const vscodeManagedRemoteResource = 'vscode-managed-remote-resource'; // TODO: 与 vscodeRemote 区别？

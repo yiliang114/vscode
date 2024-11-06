@@ -54,13 +54,16 @@ export class RemoteAuthorityResolverService extends Disposable implements IRemot
 			result = new DeferredPromise<ResolverResult>();
 			this._resolveAuthorityRequests.set(authority, result);
 			if (this._isWorkbenchOptionsBasedResolution) {
+				// 等待 authority 处理完毕返回
 				this._doResolveAuthority(authority).then(v => result!.complete(v), (err) => result!.error(err));
 			}
 		}
 
+		// 等待 authority 处理完毕返回
 		return result.p;
 	}
 
+	// 获取规范 URI
 	async getCanonicalURI(uri: URI): Promise<URI> {
 		// todo@connor4312 make this work for web
 		return uri;
@@ -79,6 +82,7 @@ export class RemoteAuthorityResolverService extends Disposable implements IRemot
 	}
 
 	private async _doResolveAuthority(authority: string): Promise<ResolverResult> {
+
 		const authorityPrefix = getRemoteAuthorityPrefix(authority);
 		const sw = StopWatch.create(false);
 		this._logService.info(`Resolving connection token (${authorityPrefix})...`);

@@ -27,7 +27,7 @@ export interface IRemoteAgentService {
 	 */
 	getRawEnvironment(): Promise<IRemoteAgentEnvironment | null>;
 	/**
-	 * Get exit information for a remote extension host.
+	 * Get exit information for a remote extension host. 获取远程扩展主机的退出信息。
 	 */
 	getExtensionHostExitInfo(reconnectionToken: string): Promise<IExtensionHostExitInfo | null>;
 

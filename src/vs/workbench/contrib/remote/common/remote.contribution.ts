@@ -73,6 +73,7 @@ class RemoteChannelsContribution extends Disposable implements IWorkbenchContrib
 		const connection = remoteAgentService.getConnection();
 		if (connection) {
 			connection.registerChannel('download', new DownloadServiceChannel(downloadService));
+			// 这种写法的作用就是通过 ipc，远程调用 node ？ 模块执行 callback
 			connection.withChannel('logger', async channel => this._register(new RemoteLoggerChannelClient(loggerService, channel)));
 		}
 	}

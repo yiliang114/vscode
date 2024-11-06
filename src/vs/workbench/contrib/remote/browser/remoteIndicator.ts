@@ -337,6 +337,7 @@ export class RemoteStatusIndicator extends Disposable implements IWorkbenchContr
 		this.virtualWorkspaceLocation = getVirtualWorkspaceLocation(this.workspaceContextService.getWorkspace());
 	}
 
+	// 注册已安装的扩展时更新
 	private async updateWhenInstalledExtensionsRegistered(): Promise<void> {
 		await this.extensionService.whenInstalledExtensionsRegistered();
 

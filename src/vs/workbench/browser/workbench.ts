@@ -175,6 +175,7 @@ export class Workbench extends Layout {
 		}
 	}
 
+	// TODO: 对于 code-server 而言，开始为入口会建立一个 ws 连接
 	private initServices(serviceCollection: ServiceCollection): IInstantiationService {
 
 		// Layout Service

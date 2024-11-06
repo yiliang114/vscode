@@ -22,6 +22,7 @@ import { IExtensionHostStatusService } from './extensionHostStatusService.js';
 import { IUserDataProfilesService } from '../../platform/userDataProfile/common/userDataProfile.js';
 import { joinPath } from '../../base/common/resources.js';
 
+// 远程代理环境通道
 export class RemoteAgentEnvironmentChannel implements IServerChannel {
 
 	private static _namePool = 1;

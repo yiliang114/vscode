@@ -76,6 +76,7 @@ export class RemoteExtensionEnvironmentChannelClient {
 		};
 	}
 
+	// 获取远程扩展主机的退出信息?
 	static async getExtensionHostExitInfo(channel: IChannel, remoteAuthority: string, reconnectionToken: string): Promise<IExtensionHostExitInfo | null> {
 		const args: IGetExtensionHostExitInfoArguments = {
 			remoteAuthority,

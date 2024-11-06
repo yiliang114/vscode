@@ -19,6 +19,7 @@ export interface IExtensionHostStatusService {
 export class ExtensionHostStatusService implements IExtensionHostStatusService {
 	_serviceBrand: undefined;
 
+	// TODO: 为什么要专门维护一个退出信息?
 	private readonly _exitInfo = new Map<string, IExtensionHostExitInfo>();
 
 	setExitInfo(reconnectionToken: string, info: IExtensionHostExitInfo): void {
