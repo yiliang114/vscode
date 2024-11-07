@@ -356,6 +356,7 @@ export class BrowserMain extends Disposable {
 		serviceCollection.set(IRemoteSocketFactoryService, remoteSocketFactoryService);
 
 		// 浏览器端远程服务，提供 ws 连接的配置信息等。
+		// Agent 的意思是中间有一层代理，磨平了 client 和 server 之间的协议， 如果 ws 连接暴露但是不知道两边定义的协议，并不会有请求能正常返回。
 		const remoteAgentService = this._register(new RemoteAgentService(remoteSocketFactoryService, userDataProfileService, environmentService, productService, remoteAuthorityResolverService, signService, logService));
 		serviceCollection.set(IRemoteAgentService, remoteAgentService);
 		this._register(RemoteFileSystemProviderClient.register(remoteAgentService, fileService, logService));

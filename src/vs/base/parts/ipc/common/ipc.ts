@@ -44,6 +44,7 @@ export interface IChannel {
  * if you'd like to handle remote promises or events.
  *
  * 都是一个 call 一个 listen，用于远程调用。
+ * 频道两个作用：1. 可以监听频道有什么消息接收。 2. 可以叫它处理事件。
  */
 export interface IServerChannel<TContext = string> {
 	call<T>(ctx: TContext, command: string, arg?: any, cancellationToken?: CancellationToken): Promise<T>;
@@ -871,7 +872,7 @@ interface Connection<TContext> extends Client<TContext> {
  */
 export class IPCServer<TContext = string> implements IChannelServer<TContext>, IRoutingChannelClient<TContext>, IConnectionHub<TContext>, IDisposable {
 
-	// 维护所有频道
+	// 维护所有频道。
 	private channels = new Map<string, IServerChannel<TContext>>();
 	// 维护客户端与服务端的所有连接。 TODO: 连接的 Content 实际上是 string =>
 	private _connections = new Set<Connection<TContext>>();
@@ -1039,7 +1040,8 @@ export class IPCServer<TContext = string> implements IChannelServer<TContext>, I
 		return emitter.event;
 	}
 
-	// 注册频道
+	// 注册频道。
+	// 比喻： WebSocket 类似 B 站建立好了平台，任何人都可以上到平台上分享、观看视频； Channel 就是 Up 主自己建的频道，如果你对科技感兴趣，那么你可以关注 xxx 这个频道，才可以接收到你想要的信息，否则平台并不知道它需要给你什么信息。
 	registerChannel(channelName: string, channel: IServerChannel<TContext>): void {
 		this.channels.set(channelName, channel);
 

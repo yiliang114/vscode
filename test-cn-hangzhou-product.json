@@ -1,0 +1,132 @@
+{
+	"remoteAuthority": "test.abc.com",
+	"productConfiguration": {
+		"nameShort": "DataWorks",
+		"nameLong": "%DataStudio%",
+		"applicationName": "code-web",
+		"dataFolderName": ".vscode-web",
+		"version": "1.87.2",
+		"dwVersion": "2024.01.01",
+		"urlProtocol": "code-oss",
+		"releaseNotesUrl": "https://aliyuque.antfin.com/dataworks/releasenote",
+		"extensionEnabledApiProposals": {
+			"dataworks.vscode-lsp-editor": [
+				"inlineCompletionsAdditions",
+				"interactive"
+			],
+			"DataWorks.vscode-datastudio-extensions": [
+				"resolvers",
+				"extensionRuntime",
+				"fileSearchProvider",
+				"textSearchProvider",
+				"scmActionButton",
+				"scmValidation",
+				"scmSelectedProvider",
+				"timeline",
+				"notebookDeprecated",
+				"notebookMessaging",
+				"notebookMime",
+				"notebookCellExecutionState",
+				"portsAttributes",
+				"quickPickSortByLabel",
+				"notebookKernelSource",
+				"interactiveWindow",
+				"notebookControllerAffinityHidden",
+				"quickPickItemTooltip",
+				"contribNotebookStaticPreloads",
+				"treeViewActiveItem"
+			],
+			"DataWorks.vscode-di-extensions": ["extensionRuntime"],
+			"ms-toolsai.jupyter": [
+				"notebookDeprecated",
+				"notebookMessaging",
+				"notebookMime",
+				"notebookCellExecutionState",
+				"portsAttributes",
+				"quickPickSortByLabel",
+				"notebookKernelSource",
+				"interactiveWindow",
+				"notebookControllerAffinityHidden",
+				"quickPickItemTooltip",
+				"notebookExecution",
+				"contribNotebookStaticPreloads",
+				"quickPickItemTooltip",
+				"notebookCellExecution",
+				"notebookVariableProvider"
+			],
+			"ms-toolsai.jupyter-renderers": ["contribNotebookStaticPreloads"]
+		},
+		"quality": "stable",
+		"commit": "760d1318e98945d05133c6121f99541ca7a39bf8",
+		"linkProtectionTrustedDomains": [
+			"https://*.alibaba-inc.com",
+			"https://*.aliyun.com"
+		]
+	},
+	"configurationDefaults": {
+		"workbench.colorTheme": "DataWorks Light",
+		"workbench.iconTheme": "material-file-icon",
+		"workbench.productIconTheme": "dataworks-product-icons",
+		"workbench.editor.untitled.labelFormat": "name",
+		"workbench.hover.delay": 300,
+		"workbench.layoutControl.enabled": false,
+		"workbench.preferredDarkColorTheme": "DataWorks Dark",
+		"workbench.preferredLightColorTheme": "DataWorks Light",
+		"workbench.preferredHighContrastColorTheme": "DataWorks Dark",
+		"workbench.preferredHighContrastLightColorTheme": "DataWorks Light",
+		"workbench.view.alwaysShowHeaderActions": true,
+		"window.menuBarVisibility": "hidden",
+		"breadcrumbs.enabled": false,
+		"editor.fontSize": 14,
+		"editor.wordBasedSuggestions": "off",
+		"editor.unicodeHighlight.includeComments": false,
+		"editor.unicodeHighlight.includeStrings": false,
+		"window.commandCenter": false,
+		"files.autoSave": "off",
+		"explorer.compactFolders": false,
+		"explorer.fileNesting.enabled": true,
+		"explorer.fileNesting.patterns": {
+			"*.sql": "${capture}.schedule,${capture}.blood,${capture}.version"
+		},
+		"explorer.sortOrder": "type",
+		"zenMode.centerLayout": false,
+		"telemetry.telemetryLevel": "off",
+		"telemetry.enableTelemetry": false,
+		"extensions.autoCheckUpdates": false,
+		"extensions.autoUpdate": false,
+		"dweditor.suffixFileName": ".sql",
+		"env.sidebarAccountMenuVisibility": false,
+		"env.sidebarSettingMenuVisibility": true,
+		"env.getGlobalDataFunctionName": "getGlobalData",
+		"env.beforeRefreshExplorerCommand": "dataworks.explorer.action.refresh",
+		"env.sidebarThemeSwitchVisibility": true,
+		"zenMode.hideTabs": false,
+		"dweditor.lsp.param.parsing": true,
+		"dataworks.lsp.param.parsing": true,
+		"window.title": "${dirty}${activeEditorShort}${separator}${profileName}${separator}${appName}",
+		"workbench.tree.indent": 16,
+		"workbench.localHistory.excludeSchemes": [
+			"dataworks-node-vfs",
+			"dataworks-vfs"
+		],
+		"problems.decorations.enabled": false,
+		"notebook.markup.fontSize": 14
+	},
+	"workspaceUri": {
+		"scheme": "dataworks-vfs-workspace",
+		"authority": "dataworks+7b2276223a317d",
+		"path": "/default.code-workspace"
+	},
+	"additionalBuiltinExtensions": [
+		{
+			"scheme": "https",
+			"authority": "dev.g.alicdn.com",
+			"path": "/alishu/vscode-lsp-extension/"
+		},
+		{
+			"scheme": "https",
+			"authority": "dev.g.alicdn.com",
+			"path": "/alishu/vscode-datastudio-extensions/"
+		}
+	]
+}

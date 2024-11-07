@@ -192,6 +192,7 @@ export class WebClientServer {
 			path: path.substring(path.indexOf('/') + 1)
 		});
 
+		//
 		if (this._getResourceURLTemplateAuthority(this._webExtensionResourceUrlTemplate) !== this._getResourceURLTemplateAuthority(uri)) {
 			return serveError(req, res, 403, 'Request Forbidden');
 		}

@@ -18,7 +18,7 @@ export const REMOTE_FILE_SYSTEM_CHANNEL_NAME = 'remoteFilesystem';
 export class RemoteFileSystemProviderClient extends DiskFileSystemProviderClient {
 
 	static register(remoteAgentService: IRemoteAgentService, fileService: IFileService, logService: ILogService): IDisposable {
-		// 如果没有远程连接，就不会有 vscode-remote 这个文件系统。
+		// 如果没有远程连接，就不会有 vscode-remote 这个文件系统。所以需要远程连接的话， 就必须有 remoteAgentService，而关键是 remoteAuthority 值。 TODO: 不清楚为什么 code-server 给了一个 'remote' 值，难道是二级路径？？
 		const connection = remoteAgentService.getConnection();
 		if (!connection) {
 			return Disposable.None;
@@ -38,6 +38,7 @@ export class RemoteFileSystemProviderClient extends DiskFileSystemProviderClient
 					// readFile/writeFile... 之类的 API 实际是通过 channel 远程调用 call 在 node 完成相关的操作之后拿到的结果，会作为给 fsp 相关函数的返回
 					fileService.registerProvider(Schemas.vscodeRemote, disposables.add(new RemoteFileSystemProviderClient(environment, connection)));
 					// 文件系统只是复用 remote connection.
+					// 如果我知道了 ws 连接，
 				} else {
 					logService.error('Cannot register remote filesystem provider. Remote environment doesnot exist.');
 				}

@@ -161,6 +161,7 @@ class BrowserWebSocket extends Disposable implements IWebSocket {
 				} else {
 					// An error event is pending
 					// The browser appears to be online...
+					// wasClean = false 表示 ws 没有正常关闭
 					if (!e.wasClean) {
 						// Let's be optimistic and hope that perhaps the server could not be reached or something
 						sendErrorNow(new RemoteAuthorityResolverError(e.reason || `WebSocket close with status code ${e.code}`, RemoteAuthorityResolverErrorCode.TemporarilyNotAvailable, e));

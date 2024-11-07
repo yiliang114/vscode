@@ -229,6 +229,7 @@ export async function setupServerServices(connectionToken: ServerConnectionToken
 		// 对远程文件系统的 scheme 做了映射？
 		// 这个通道为什么不是 file 或者 vscode-remote 之类的。 Channel 可以理解为通过 ws 连接，约定好一个有一个额外的字段服务，是用来专门做 xxx 事情的。
 		const remoteFileSystemChannel = disposables.add(new RemoteAgentFileSystemProviderChannel(logService, environmentService, configurationService));
+		// 理论上说这里只要有 node 端服务，Channel 就会被注册上，无论是否有前端准备消费。
 		socketServer.registerChannel(REMOTE_FILE_SYSTEM_CHANNEL_NAME, remoteFileSystemChannel);
 
 		// 远程通道发送消息过来，会对不同的消息做对应的行为。

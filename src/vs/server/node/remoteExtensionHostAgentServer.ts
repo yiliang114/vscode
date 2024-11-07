@@ -132,6 +132,8 @@ class RemoteExtensionHostAgentServer extends Disposable implements IServerAPI {
 			return void res.end('OK');
 		}
 
+		// TODO: ws 会校验请求的来源 origin， 如果发现不是同一个 origin，会直接拒绝 http 请求返回 403 后续的 ws 接口会直接连接不上。
+		// 本地调试的办法是： 用 whistle 代理设置请求的 Origin 和 Host.
 		if (!httpRequestHasValidConnectionToken(this._connectionToken, req, parsedUrl)) {
 			// invalid connection token
 			return serveError(req, res, 403, `Forbidden.`);
@@ -304,9 +306,9 @@ class RemoteExtensionHostAgentServer extends Disposable implements IServerAPI {
 		const signer = this._vsdaMod ? new this._vsdaMod.signer() : null;
 
 		const enum State {
-			WaitingForAuth,
-			WaitingForConnectionType,
-			Done,
+			WaitingForAuth, // 等待鉴权
+			WaitingForConnectionType, // 等待连接
+			Done, // 连接完成
 			Error
 		}
 		let state = State.WaitingForAuth;
@@ -373,8 +375,10 @@ class RemoteExtensionHostAgentServer extends Disposable implements IServerAPI {
 				}
 
 				const rendererCommit = msg2.commit;
+				// webide 的 vscode commit 要与 code-server 运行的 vscode commit 版本保持一致。
 				const myCommit = this._productService.commit;
 				if (rendererCommit && myCommit) {
+					// 否则会报版本不一致的问题，也合理： 如果版本不一致可能 node/browser 的代码经过变更，两边对应不上就会导致 rpc 请求信息不一致。
 					// Running in the built version where commits are defined
 					if (rendererCommit !== myCommit) {
 						return rejectWebSocketConnection(`Client refused: version mismatch`);

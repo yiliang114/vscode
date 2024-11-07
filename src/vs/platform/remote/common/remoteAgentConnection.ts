@@ -264,6 +264,7 @@ async function connectToRemoteExtensionHostAgent<T extends RemoteConnection>(opt
 	options.logService.trace(`${logPrefix} 3/6. sending AuthRequest control message.`);
 	const message = await raceWithTimeoutCancellation(options.signService.createNewMessage(generateUuid()), timeoutCancellationToken);
 
+	// ws 首次连接的鉴权信息
 	const authRequest: AuthRequest = {
 		type: 'auth',
 		auth: options.connectionToken || '00000000000000000000',
