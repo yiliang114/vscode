@@ -574,6 +574,7 @@ export class NotebookService extends Disposable implements INotebookService {
 						continue;
 					}
 
+					// 存下一个映射关系，notebook 类型触发时，才会真正加载该 notebookPreload
 					this._notebookStaticPreloadInfoStore.add(new NotebookStaticPreloadInfo({
 						type,
 						extension: extension.description,

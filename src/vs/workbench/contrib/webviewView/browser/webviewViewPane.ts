@@ -162,8 +162,10 @@ export class WebviewViewPane extends ViewPane {
 	private updateTreeVisibility() {
 		if (this.isBodyVisible()) {
 			this.activate();
+			// 挂载 webview. 理论上这个时候 webview 才会进行加载资源？
 			this._webview.value?.claim(this, getWindow(this.element), undefined);
 		} else {
+			// 卸载 webview
 			this._webview.value?.release(this);
 		}
 	}

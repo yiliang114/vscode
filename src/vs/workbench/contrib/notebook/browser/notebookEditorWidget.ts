@@ -1393,6 +1393,7 @@ export class NotebookEditorWidget extends Disposable implements INotebookEditorD
 				throw new Error('Notebook output webview object is not created successfully.');
 			}
 
+			// 创建一张 notebook Webview
 			await this._webview.createWebview(this.creationOptions.codeWindow ?? mainWindow);
 			if (!this._webview.webview) {
 				throw new Error('Notebook output webview element was not created successfully.');
@@ -2833,6 +2834,7 @@ export class NotebookEditorWidget extends Disposable implements INotebookEditorD
 		await this._webview?.updateMarkupPreviewSelections(selectedCells.length > 1 ? selectedCells : []);
 	}
 
+	// 每一个 output 是一张单独的 webview？
 	async createOutput(cell: CodeCellViewModel, output: IInsetRenderOutput, offset: number, createWhenIdle: boolean): Promise<void> {
 		this._insetModifyQueueByOutputId.queue(output.source.model.outputId, async () => {
 			if (this._isDisposed || !this._webview) {

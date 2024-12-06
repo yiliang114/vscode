@@ -267,6 +267,7 @@ export const notebookRendererExtensionPoint = ExtensionsRegistry.registerExtensi
 });
 
 export const notebookPreloadExtensionPoint = ExtensionsRegistry.registerExtensionPoint<INotebookPreloadContribution[]>({
+	// notebook 预加载。看起来是 vscode 对 notebook 做的优化
 	extensionPoint: 'notebookPreload',
 	jsonSchema: notebookPreloadContribution,
 });

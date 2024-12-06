@@ -309,6 +309,9 @@ export class BackLayerWebView<T extends ICommonCellInfo> extends Themable {
 		const enableCsp = this.configurationService.getValue('notebook.experimental.enableCsp');
 		const currentHighlight = this.getColor(editorFindMatch);
 		const findMatchHighlight = this.getColor(editorFindMatchHighlight);
+
+		// TODO:
+		// 看起来跟普通的 webview 没有什么差别，notebook 的 render
 		return /* html */`
 		<html lang="en">
 			<head>
@@ -535,6 +538,7 @@ export class BackLayerWebView<T extends ICommonCellInfo> extends Themable {
 		return !!this.webview;
 	}
 
+	// notebook 实际上也是 webview
 	createWebview(targetWindow: CodeWindow): Promise<void> {
 		const baseUrl = this.asWebviewUri(this.getNotebookBaseUri(), undefined);
 		const htmlContent = this.generateContent(baseUrl.toString());
@@ -590,6 +594,7 @@ export class BackLayerWebView<T extends ICommonCellInfo> extends Themable {
 			initializePromise.error(new Error(`Could not initialize webview: ${e.message}}`));
 		}));
 
+		// webview 通信的 rpc 注入
 		this._register(this.webview.onMessage(async (message) => {
 			const data: FromWebviewMessage | { readonly __vscode_notebook_message: undefined } = message.message;
 			if (this._disposed) {
@@ -1869,6 +1874,7 @@ export class BackLayerWebView<T extends ICommonCellInfo> extends Themable {
 		];
 
 		this.webview.localResourcesRoot = mixedResourceRoots;
+		// 同步数据到 output 部分
 		this._sendMessageToWebview({
 			type: 'updateRenderers',
 			rendererData: renderersData
