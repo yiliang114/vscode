@@ -231,6 +231,8 @@ export class DiskFileSystemProviderClient extends Disposable implements
 		// for both events and errors from the watcher. So we need to
 		// unwrap the event from the remote and emit through the proper
 		// emitter.
+		// 文件更改的约定是有一个监听器对于来自观察者的事件和错误。所以我们需要从远程解开事件，并通过适当的发射器。
+		// 监听文件更改事件
 		this._register(this.channel.listen<IFileChange[] | string>('fileChange', [this.sessionId])(eventsOrError => {
 			if (Array.isArray(eventsOrError)) {
 				const events = eventsOrError;

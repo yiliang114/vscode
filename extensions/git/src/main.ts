@@ -61,6 +61,7 @@ async function createModel(context: ExtensionContext, logger: LogOutputChannel, 
 		return !skip;
 	}, logger);
 
+	// TODO: 为社么还需要 rpc
 	let ipcServer: IPCServer | undefined = undefined;
 
 	try {
@@ -204,6 +205,7 @@ export async function _activate(context: ExtensionContext): Promise<GitExtension
 	const config = workspace.getConfiguration('git', null);
 	const enabled = config.get<boolean>('enabled');
 
+	// 默认 git 应该都是开启
 	if (!enabled) {
 		const onConfigChange = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('git'));
 		const onEnabled = filterEvent(onConfigChange, () => workspace.getConfiguration('git', null).get<boolean>('enabled') === true);

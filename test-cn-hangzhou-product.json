@@ -5,7 +5,7 @@
 		"nameLong": "%DataStudio%",
 		"applicationName": "code-web",
 		"dataFolderName": ".vscode-web",
-		"version": "1.87.2",
+		"version": "1.84.0",
 		"dwVersion": "2024.01.01",
 		"urlProtocol": "code-oss",
 		"releaseNotesUrl": "https://aliyuque.antfin.com/dataworks/releasenote",
@@ -84,7 +84,7 @@
 			"ms-toolsai.jupyter-renderers": ["contribNotebookStaticPreloads"]
 		},
 		"quality": "stable",
-		"commit": "760d1318e98945d05133c6121f99541ca7a39bf8",
+		"commit": "7cead673a1e969277ca0ef07349f327b84c0fc7a",
 		"linkProtectionTrustedDomains": [
 			"https://*.alibaba-inc.com",
 			"https://*.aliyun.com"

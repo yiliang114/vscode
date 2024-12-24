@@ -64,6 +64,7 @@ export class FileService extends Disposable implements IFileService {
 		this.provider.set(scheme, provider);
 		this._onDidChangeFileSystemProviderRegistrations.fire({ added: true, scheme, provider });
 
+		// 磁盘中的文件系统变更事件
 		// Forward events from provider
 		providerDisposables.add(provider.onDidChangeFile(changes => {
 			const event = new FileChangesEvent(changes, !this.isPathCaseSensitive(provider));

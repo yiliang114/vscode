@@ -214,6 +214,7 @@ export class Model implements IRepositoryResolver, IBranchProtectionProviderRegi
 			return Promise.resolve();
 		}
 
+		// 初始化完毕之后，就不会显示 Scanning.. 等 view.workbench.scm.scanWorkspaceForRepositories 文案了。
 		return eventToPromise(filterEvent(this.onDidChangeState, s => s === 'initialized')) as Promise<any>;
 	}
 

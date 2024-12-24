@@ -205,6 +205,7 @@ export abstract class AbstractDiskFileSystemProviderChannel<T> extends Disposabl
 	private readonly sessionToWatcher = new Map<string /* session ID */, ISessionFileWatcher>();
 	private readonly watchRequests = new Map<string /* session ID + request ID */, IDisposable>();
 
+	// node 来 watcher 本地磁盘文件的改动， 然后通过此处的 emitter 对外传出，对外的接口是 onFileChange
 	private onFileChange(uriTransformer: IURITransformer, sessionId: string): Event<IFileChange[] | string> {
 
 		// We want a specific emitter for the given session so that events
